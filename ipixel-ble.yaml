@@ -1,0 +1,189 @@
+esphome:
+  name: ipixel-ble
+  friendly_name: LED Pixel Board
+  libraries:
+    - https://github.com/donkracho/ErriezCRC32
+
+esp32:
+  board: esp32-c3-devkitm-1
+  framework:
+    type: esp-idf
+
+# Enable logging ESP32 C3 reuses UART0
+logger:
+  baud_rate: 115200
+  hardware_uart: UART0
+  level: debug
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret esphome_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret esphome_ota_key
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  
+external_components:
+  - source: D:\esphome\external_components\components
+    refresh: 0s
+    components: [ipixel_ble]
+    
+esp32_ble_tracker:
+
+ble_client:
+  id: ble_client_id
+  mac_address: 0F:D6:54:F9:D2:C7
+
+# dummy required for light component
+output:
+  - platform: ledc
+    pin: GPIO4
+    id: dummy_output_id
+
+ipixel_ble:
+  id: ipixel_id
+  ble_client_id: ble_client_id
+
+# rgb light dummy to set on/off, brightness, color. Uses flash transition lenth parameter to set an effect
+light:
+  - platform: ipixel_ble
+    name: Display
+    id: display_id
+    default_transition_length: 0s
+    initial_state:
+      state: ON
+    restore_mode: RESTORE_DEFAULT_ON
+    effects:
+      - lambda:
+          name: Time
+          lambda: |-
+            id(display_id).set_flash_transition_length(1);
+      - lambda:
+          name: Time & Date
+          lambda: |-
+            id(display_id).set_flash_transition_length(2);
+      - lambda:
+          name: Message
+          lambda: |-
+            id(display_id).set_flash_transition_length(3);
+      - lambda:
+          name: Load PNG
+          lambda: |-
+            id(display_id).set_flash_transition_length(4);
+      - lambda:
+          name: load GIF
+          lambda: |-
+            id(display_id).set_flash_transition_length(5);
+      - lambda:
+          name: Fill Color
+          lambda: |-
+            id(display_id).set_flash_transition_length(6);
+      - lambda:
+          name: Fill Rainbow
+          lambda: |-
+            id(display_id).set_flash_transition_length(7);
+      - lambda:
+          name: Random Pixels
+          lambda: |-
+            id(display_id).set_flash_transition_length(8);
+      - lambda:
+          name: Alarm
+          lambda: |-
+            id(display_id).set_flash_transition_length(9);
+#    on_turn_on:
+#      - light.turn_on: 
+#          id: display_id
+#          effect: "Time"
+#          brightness: 70%
+
+sensor:
+  platform: ipixel_ble
+  connect_state:
+    name: "Connect State"
+    id: connect_state
+    icon: mdi:bluetooth
+  display_width:
+    name: "Display Width"
+    id: display_width
+    icon: mdi:arrow-expand-horizontal
+  display_height:
+    name: "Display Height"
+    id: display_height
+    icon: mdi:arrow-expand-vertical
+  font_width:
+    name: "Font Width"
+    id: font_width
+    icon: mdi:arrow-left-right
+  font_height:
+    name: "Font Height"
+    id: font_height
+    icon: mdi:arrow-up-down
+  orientation:
+    name: "Orientation"
+    id: orientation
+    icon: mdi:screen-rotation
+  fun_mode:
+    name: "Fun Mode"
+    id: fun_mode
+    icon: mdi:emoticon-outline
+
+number:
+  - platform: ipixel_ble
+    clock_style:
+      name: "Clock style"
+      id: clock_style
+      icon: mdi:clock-digital
+    slot_number:
+      name: "Slot Number"
+      id: slot_number
+      icon: mdi:numeric-1-box-multiple-outline
+      internal: true
+    annimation_mode:
+      name: "Annimation Mode"
+      id: annimation_mode
+      icon: mdi:animation-outline
+    annimation_speed:
+      name: "Annimation Speed"
+      id: annimation_speed
+      icon: mdi:play-speed
+    font_flag:
+      name: "Font Flag"
+      id: font_flag
+      icon: mdi:format-size
+    text_mode:
+      name: "Text Mode"
+      id: text_mode
+      icon: mdi:palette
+
+button:
+  - platform: ipixel_ble
+    delete_slot:
+      name: "Delete Slot"
+      id: delete_slot_button
+      internal: true
+    update_time:
+      name: "Update Time"
+      id: update_time_button
+
+switch:
+  - platform: ipixel_ble
+    play:
+      name: "Play"
+      id: play_switch
+      internal: true
+
+text:
+  - platform: ipixel_ble
+    name: Data
+    id: data_id
+    mode: text
+    icon: "mdi:keyboard-settings-outline"
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time

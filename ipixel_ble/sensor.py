@@ -1,0 +1,102 @@
+import esphome.codegen as cg
+from esphome.components import ble_client, sensor
+import esphome.config_validation as cv
+from esphome.const import (
+    CONF_ALTITUDE,
+    DEVICE_CLASS_EMPTY,
+    DEVICE_CLASS_TEMPERATURE,
+    STATE_CLASS_MEASUREMENT,
+    UNIT_CELSIUS,
+    UNIT_EMPTY,
+    UNIT_METER,
+    UNIT_SECOND,
+    UNIT_VOLT,
+)
+
+from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
+
+CODEOWNERS = ["@donkracho"]
+DEPENDENCIES = ["ipixel_ble"]
+AUTO_LOAD = ["sensor"]
+
+# Sensor configurations
+CONF_CONNECT_STATE = "connect_state"
+CONF_DISPLAY_WIDTH = "display_width"
+CONF_DISPLAY_HEIGHT = "display_height"
+CONF_FONT_FLAG = "font_flag"
+CONF_FONT_WIDTH = "font_width"
+CONF_FONT_HEIGHT = "font_height"
+CONF_ORIENTATION = "orientation"
+CONF_FUN_MODE = "fun_mode"
+
+CONFIG_SCHEMA = cv.Schema(
+    {
+        cv.GenerateID(CONF_IPIXEL_BLE): cv.use_id(IPixelBLE),
+        cv.Optional(CONF_CONNECT_STATE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_DISPLAY_WIDTH): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_DISPLAY_HEIGHT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_FONT_FLAG): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_FONT_WIDTH): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_FONT_HEIGHT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_ORIENTATION): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Optional(CONF_FUN_MODE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+    }
+).extend(ble_client.BLE_CLIENT_SCHEMA)
+
+
+async def to_code(config):
+    var = await cg.get_variable(config[CONF_IPIXEL_BLE])
+
+    for sensor_name in [
+        CONF_CONNECT_STATE,
+        CONF_DISPLAY_WIDTH,
+        CONF_DISPLAY_HEIGHT,
+        CONF_FONT_FLAG,
+        CONF_FONT_WIDTH,
+        CONF_FONT_HEIGHT,
+        CONF_ORIENTATION,
+        CONF_FUN_MODE,
+    ]:
+        if sensor_config := config.get(sensor_name):
+            sens = await sensor.new_sensor(sensor_config)
+            cg.add(getattr(var, f"set_{sensor_name}")(sens))
