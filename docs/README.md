@@ -27,7 +27,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
   Same styles as selectable in the iPixel Color App 
 
 - **Data** (text input)   
-  text input to the Message effect
+  text input for the Message effect
 
 - **Display** (rgb light)   
   First of all you can switch on and off the display.
@@ -78,6 +78,7 @@ Here you can set brightness, color and effects.
 ![RGB light dialog](effect_view.png)
 
 ### HomeAssistant scripting
+
 
 
 
