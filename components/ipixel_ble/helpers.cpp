@@ -3,7 +3,7 @@
 
 namespace Helpers {
 
-    const char *TAG = "Helpers";
+    const char *TAG = "helpers";
 
     std::vector<uint8_t> switchEndian(const std::vector<uint8_t>& bytes) {
         std::vector<uint8_t> result(bytes.rbegin(), bytes.rend());
