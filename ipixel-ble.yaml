@@ -29,7 +29,7 @@ wifi:
   password: !secret wifi_password
   
 external_components:
-  - source: D:\esphome\external_components\components
+  - source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices
     refresh: 0s
     components: [ipixel_ble]
     
