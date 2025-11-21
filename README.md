@@ -57,10 +57,10 @@ and figured out most of the BLE protocol required.
 
 My credits go to:
 
-- **[lucagoc/iPixel-CLI](https://github.com/lucagoc/iPixel-CLI)**  
+- **[lucagoc/pypixelcolor](https://github.com/lucagoc/pypixelcolor)**  
   A Python command line solution, without HA integration.
   
-- **[lucagoc/iPixel-CLI](https://github.com/lucagoc/iPixel-ESPHome)**
+- **[lucagoc/iPixel-ESPHome](https://github.com/lucagoc/iPixel-ESPHome)**
   An ESPHome integration in progress using lambda functions supporting a few commands right now.
   
 - **[ToBiDi0410/iPixel-ESP32](https://github.com/ToBiDi0410/iPixel-ESP32)**
@@ -122,4 +122,5 @@ The BLE stack occupies a significant amount of flash memory. Combined with sever
   
 - **and last but not least: implementing a display component**  
   This will enable to do some graphical stuff but will definitely require a device like the ESP32 S3 with more flash memory. Be aware that sending a huge amount of data via BLE takes it's time.
+
 
