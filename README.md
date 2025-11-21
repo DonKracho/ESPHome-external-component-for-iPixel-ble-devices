@@ -19,7 +19,7 @@ This repository contains an ESPHome external component that enables control of a
   - [What Has Been Done?](#what-has-been-done)
   - [Key Insights](#key-insights)
   - [Framework Selection](#framework-selection)
-- [Part Five: Future Work / ToDo](#part five-future-work--todo)
+- [Part Five: Future Work / ToDo](#part-five-future-work--todo)
 
 
 ## **Disclaimer**
@@ -122,6 +122,7 @@ The BLE stack occupies a significant amount of flash memory. Combined with sever
   
 - **and last but not least: implementing a display component**  
   This will enable to do some graphical stuff but will definitely require a device like the ESP32 S3 with more flash memory. Be aware that sending a huge amount of data via BLE takes it's time.
+
 
 
 
