@@ -8,7 +8,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
 
 # The internal components explained
 
-- **Animation Mode** (number 0-9, default: 1)
+- **Animation Mode** (number 0-9, default: 1)   
   exlusive for the Message effect. Animation Speed does apply.
   
   0: text is displayed in pages 
@@ -19,17 +19,17 @@ When this external component is compiled and uploaded to the esp32 module you ho
   5: text flashing 
   6: text with brightnes rising
 
-- **Animation Speed** (number 1-100, step: 5, default: 100)
+- **Animation Speed** (number 1-100, step: 5, default: 100)   
   exlusive for the Message effect
 
-- **Clock Style** (number 1-9, default: 7)
+- **Clock Style** (number 1-9, default: 7)   
   exlusive for the Time and Time & Date effect
   Same styles as selectable in the iPixel Color App 
 
-- **Data** (text input)
+- **Data** (text input)   
   text input to the Message effect
 
-- **Display** (rgb light)
+- **Display** (rgb light)   
   First of all you can switch on and off the display.
   Cliking on the text "Display" will open the rgb light diapog (see next chapter)
 
@@ -45,7 +45,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
   - **Random Pixel** calls setPixel() wit random coordinates and colors every 300ms 
   - **Alarn** changes Brightness in a falling ramp every 300ms  
 
-- **Font Flag** (number 1-4, default: 0)
+- **Font Flag** (number 1-4, default: 0)  
   exlusive for the message display effect
   
   0:  8x16 Font
@@ -78,3 +78,4 @@ Here you can set brightness, color and effects.
 ![RGB light dialog](effect_view.png)
 
 # HomeAssistant scripting
+
