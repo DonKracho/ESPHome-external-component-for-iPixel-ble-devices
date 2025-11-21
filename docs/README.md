@@ -34,7 +34,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
   Cliking on the text "Display" will open the rgb light diapog (see next chapter)
 
   Effects:
-  - **None** (calls clear() which shows the inintial image of the device)
+  - **None** Calls the clear() method which shows the inintial image of the device  
   - **Time** Clock display
   - **Time & Date** Alternating Clock/Date display 
   - **Message** Text display
@@ -125,6 +125,7 @@ script:
   alias: iPixel send and display text
   description: 'display text on the LED pixel bord'
 ```
+
 
 
 
