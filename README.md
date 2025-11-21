@@ -19,16 +19,16 @@ This repository contains an ESPHome external component that enables control of a
   - [What Has Been Done?](#what-has-been-done)
   - [Key Insights](#key-insights)
   - [Framework Selection](#framework-selection)
-  - [Future Work / TODO](#future-work--todo)
+- [Part Five: Future Work / ToDo](#part five-future-work--todo)
 
 
-# **Disclaimer**
+## **Disclaimer**
 This is work in progress. Because everytrhing is working I wanted to use, I will not spend a lot of time for this repository now. Feel free to contribute or fork.
 
-# Part One: Why?
+## Part One: Why?
 I purchased a 32x32 LED Pixel Board fom Action in Germany. I wanted to integrate it in HomeAssistant via ESPHome.
 
-## How Can It Be Remotely Controlled?
+### How Can It Be Remotely Controlled?
 The display is controlled by the iPixel Color App via bluetooth
 ```
 +--------------+                   #-----------------+
@@ -37,10 +37,10 @@ The display is controlled by the iPixel Color App via bluetooth
 +--------------+                   +-----------------+
 ```
 
-## Is there a one for all solution?
+### Is there a one for all solution?
 Definitely the App only. The App is quite complpex providing several image databases and a drawing interface that will not fit into a cheap micro controller.
 
-# Part Two: Hasn’t This Been Done Already?
+## Part Two: Hasn’t This Been Done Already?
 
 Many have requested to control these devices, but none of the available solutions met my specific needs:
 - My main usage of the display will be a nerdy clock visualization provided by the display firmware.
@@ -55,7 +55,7 @@ Many have requested to control these devices, but none of the available solution
 Fortunately some smart people already investigated into this type of display controlled with the IPixel Color App
 and figured out most of the BLE protocol required.
 
-My credits go to:
+**My credits go to:**
 
 - **[lucagoc/pypixelcolor](https://github.com/lucagoc/pypixelcolor)**  
   A Python command line solution, without HA integration.
@@ -77,30 +77,30 @@ My credits go to:
   I'm not that familar creating complex ESPHome components.  
   For my opinion tis is a great and clean project to be used as skeleton for my external component.
 
-# Part Three: Inventory
+## Part Three: Inventory
 
-## What is working
+### What is working
 All commands sending a few bytes only, like led on/off set pixel, setting and selecting clock are working.
 
-## What was going wrong?
+### What was going wrong?
 The display did not show any text and images with the existing repositories.
 
-## Knowing the problem is half of its solution
+### Knowing the problem is half of its solution
 I did some BLE sniffig and figured out that this display does support monospaced 8x16, 16x16 and 32x16 font matrixes only. Therefore sending text chars ist different from the existing implementations.
 
-# Part Four: External Component Implementation
-## What Has Been Done?
+## Part Four: External Component Implementation
+### What Has Been Done?
 - I had to figure out a way to get color values and text and image data accesible in the component. 
 - Selecting a set of useful parameters, sensors and buttons required to control the iPixel device. 
 - Ensure extensibility: The component is designed to support other versions of the display too.
 
-## Key Insights
+### Key Insights
 One major discovery is that no single protocol exists for communicating with all BLE-enabled controllers. Most existing documentation and repositories focus on one. But at least other do exist the iPixel Color app is aware of only by evaluating firmware versions and display size. It requires people who own these devices, especially the none working, to do some debugging.
 
-## Framework Selection
+### Framework Selection
 The BLE stack occupies a significant amount of flash memory. Combined with several sensors, buttons, and other components, this quickly exceeded the 4MB flash capacity of my ESP32-C3 Super Lite. I found that the ESP-IDF framework produces a smaller binary compared to the Arduino framework. In future ESPHome will support the ESP-IDF only. Therefore it is strongly regcommended to use it right now.
 
-## Future Work / TODO
+## Part Five: Future Work / ToDo
 
 - **Known issues:**  
   - switching off and on the light does set the effect to none. I found no elegant way to propagate the last running effect to the light component. (I pepared it accordng the dev branch of ESPHome but the functions are not available in version 2025.2.0)
@@ -122,6 +122,7 @@ The BLE stack occupies a significant amount of flash memory. Combined with sever
   
 - **and last but not least: implementing a display component**  
   This will enable to do some graphical stuff but will definitely require a device like the ESP32 S3 with more flash memory. Be aware that sending a huge amount of data via BLE takes it's time.
+
 
 
 
