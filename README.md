@@ -71,7 +71,7 @@ and figured out most of the BLE protocol required.
   A small and efficient CRC32 checksum calculator. I used my forked version because it is restricted for arduino use only. There are no dependencies to the arduino framework. I just had to modify the library.json.
 
 - **[spacerace/romfont](https://github.com/spacerace/romfont)**  
-  The MORSEKP800_8x16 font is used for caracter bitmap rendering.
+  The MORSEKP800_8x16 font is used for caracter bitmap rendering. I just made te german 'ß' taller. Even in 8x16 size this font is readable well from distance. 
 
 - **[warehog/esphome-diesel-heater-ble](https://github.com/warehog/esphome-diesel-heater-ble)**  
   I'm not that familar creating complex ESPHome components.  
@@ -122,6 +122,7 @@ The BLE stack occupies a significant amount of flash memory. Combined with sever
   
 - **and last but not least: implementing a display component**  
   This will enable to do some graphical stuff but will definitely require a device like the ESP32 S3 with more flash memory. Be aware that sending a huge amount of data via BLE takes it's time.
+
 
 
 
