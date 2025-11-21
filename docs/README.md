@@ -1,12 +1,12 @@
 ## EESPHome integration for a LED Pixel Board
 
-# How to integrate into HomeAssistant
+### How to integrate into HomeAssistant
 
 When this external component is compiled and uploaded to the esp32 module you hopefully get a message on your Hoeassistant instance about a new ESPHome device detectet. Allow to import it. The device page will show up as follows.
 
 ![this is what you get](default_view.png)
 
-# The internal components explained
+### The internal components explained
 
 - **Animation Mode** (number 0-9, default: 1)   
   exlusive for the Message effect. Animation Speed does apply.
@@ -67,7 +67,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
 - **Update Time**
   Usually the internal clock of the display gets synchronized every hour by this device based on the homaassistant time (requires ipixel-ble.yaml time entry at the end of the file). If, for what reasons ever, the time is not up to date press this button. If it is still not correct soemting is wrong with your Homeassistant time. 
  
-# The display rgb light component explained
+### The display rgb light component explained
 
 Cklick on the text "Display" of the RGB light component to open dtetailed settings,
 
@@ -77,6 +77,7 @@ Here you can set brightness, color and effects.
 
 ![RGB light dialog](effect_view.png)
 
-# HomeAssistant scripting
+### HomeAssistant scripting
+
 
 
