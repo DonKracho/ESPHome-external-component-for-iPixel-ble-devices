@@ -103,9 +103,10 @@ script:
       - 255
       - 255
       - 0
-  - device_id: 647c20e6b4026448d8b80348af256dcb (ipixel_id)
+    effect: "Load PNG"
+  - device_id: ipixel_id
     domain: number
-    entity_id: 2b63b06c32b6f7e017a7a618fa4e00b8  (font_mode_id)
+    entity_id: font_mode_id
     type: set_value
     value: 2
   - action: text.set_value
@@ -123,4 +124,5 @@ script:
   alias: iPixel send and display text
   description: 'display text on the LED pixel board'
 ```
+
 
