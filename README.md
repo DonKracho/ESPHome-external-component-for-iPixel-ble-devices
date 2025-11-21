@@ -1,6 +1,6 @@
 ## EESPHome Integration for a LED Pixel Board
 
-![LED Pixel Board](docs/LEDPixelBoard.jpg)                                                .
+![LED Pixel Board](docs/LEDPixelBoard.jpg)
 
 This repository contains an ESPHome external component that enables control of a Bluetooth‐enabled Pixel Display. It is non intrusive - no modification of the display is required. It just emulates the known iPixel Color App commands.
 
@@ -122,6 +122,7 @@ The BLE stack occupies a significant amount of flash memory. Combined with sever
   
 - **and last but not least: implementing a display component**  
   This will enable to do some graphical stuff but will definitely require a device like the ESP32 S3 with more flash memory. Be aware that sending a huge amount of data via BLE takes it's time.
+
 
 
 
