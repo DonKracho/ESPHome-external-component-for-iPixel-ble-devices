@@ -1,3 +1,4 @@
+.backup/
 .esphome/
 components/ipixel_ble/__pycache__
 secrets.yaml

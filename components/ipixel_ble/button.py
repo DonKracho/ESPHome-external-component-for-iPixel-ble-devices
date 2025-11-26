@@ -4,15 +4,8 @@ import esphome.config_validation as cv
 
 from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
 
-CODEOWNERS = ["@donkracho"]
-DEPENDENCIES = ["ipixel_ble"]
-
-CONF_CLEAR_ALL = "clear_all"
 CONF_DELETE_SLOT = "delete_slot"
-CONF_SET_PIXEL = "set_pixel"
-CONF_TEST_FILL = "test_fill"
 CONF_UPDATE_TIME = "update_time"
-
 
 CONFIG_SCHEMA = cv.Schema(
     {

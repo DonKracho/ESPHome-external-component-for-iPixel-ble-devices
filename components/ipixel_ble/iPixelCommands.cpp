@@ -150,7 +150,7 @@ namespace iPixelCommads {
     }
 
     std::vector<uint8_t> setClockMode(int style, int dayOfWeek, int year, int month, int day, bool showDate, bool format24) {
-        checkRange("Style", style, 1, 8);
+        checkRange("Style", style, 1, 9);
         checkRange("Day of Week", dayOfWeek, 1, 7);
         checkRange("Year", year, 0, 99);
         checkRange("Month", month, 1, 12);
@@ -331,4 +331,5 @@ namespace iPixelCommads {
         
         return result;
     }
-}
+
+} // namespace iPixelCommads

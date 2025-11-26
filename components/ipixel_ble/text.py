@@ -2,7 +2,7 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import text
 
-from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
+from . import CONF_IPIXEL_BLE, IPixelBLE
 
 CONFIG_SCHEMA = text.TEXT_SCHEMA.extend(
     {

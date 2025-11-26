@@ -1,12 +1,11 @@
 #pragma once
 
-#ifdef USE_ESP32
-
 #define USE_IPIXELCOMMANDS
 
 #include <esp_gattc_api.h>
 #include <algorithm>
 #include <iterator>
+#include "esphome/components/display/display.h"
 #include "esphome/components/ble_client/ble_client.h"
 #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 #include "esphome/components/light/light_output.h"
@@ -21,28 +20,33 @@
 #include "state.h"
 
 namespace esphome {
-namespace ipixel_ble {
+namespace display {
 
-class IPixelBLE : public Component, public ble_client::BLEClientNode, public light::LightOutput, public text::Text {
+class IPixelBLE :  public display::Display, public light::LightOutput, public ble_client::BLEClientNode, public text::Text {
  public:
-  IPixelBLE() = default;
+  IPixelBLE() {}
 
+  void setup() override;
   void loop() override;
   
-  // optional parameters
+  // display
+  void update() override;
+  void draw_pixel_at(int x, int y, Color color) override;
+  int get_width_internal() override { return state_.mDisplayWidth; }
+  int get_height_internal() override { return state_.mDisplayHeight; }
+  DisplayType get_display_type() override { return DISPLAY_TYPE_COLOR; }
+
+  // optional display parameters
   void set_display_width(uint8_t val) { state_.mDisplayWidth = val; }
   void set_display_height(uint8_t val) { state_.mDisplayHeight = val; }
-
+  
   // ble client
   void gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param) override;
-
   bool ble_write_chr(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda, uint16_t handle, uint8_t *data, uint16_t len);
   bool ble_read_chr(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda, uint16_t handle);
   bool ble_register_for_notify(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda);
-
   void on_notification_received(const std::vector<uint8_t> &data);
-  void update_sensors(const DeviceState &new_state);
-
+  
   // light
   light::LightTraits get_traits() {
     auto traits = light::LightTraits();
@@ -111,6 +115,8 @@ class IPixelBLE : public Component, public ble_client::BLEClientNode, public lig
   void alarm_effect();
 
   protected:
+  void update_state_(const DeviceState &new_state);
+
   uint16_t handle_{0};
   esp32_ble_tracker::ESPBTUUID service_uuid_ = esp32_ble_tracker::ESPBTUUID::from_raw("000000fa-0000-1000-8000-00805f9b34fb");
   esp32_ble_tracker::ESPBTUUID characteristic_uuid_ = esp32_ble_tracker::ESPBTUUID::from_raw("0000fa02-0000-1000-8000-00805f9b34fb");
@@ -123,6 +129,8 @@ class IPixelBLE : public Component, public ble_client::BLEClientNode, public lig
   uint32_t last_update_{0};
   uint32_t last_animation_{0};
   
+  //const char component_source_;
+
   // Sensor fields
   sensor::Sensor *power_state_{};
   sensor::Sensor *connect_state_{};
@@ -146,7 +154,6 @@ class IPixelBLE : public Component, public ble_client::BLEClientNode, public lig
   switch_::Switch *play_switch_{};
 };
 
-}  // namespace ipixel_ble
+}  // namespace display
 }  // namespace esphome
 
-#endif  // USE_ESP32

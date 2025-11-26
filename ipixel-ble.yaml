@@ -29,34 +29,32 @@ wifi:
   password: !secret wifi_password
   
 external_components:
-#  - source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices/components
-  - source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
+  - source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices/components
+#  - source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
     refresh: 0s
     components: [ipixel_ble]
-    
+
+# required by ble_client    
 esp32_ble_tracker:
 
 ble_client:
   id: ble_client_id
   mac_address: 0F:D6:54:F9:D2:C7
 
-# dummy required for light component
-output:
-  - platform: ledc
-    pin: GPIO4
-    id: dummy_output_id
-
 ipixel_ble:
-  id: ipixel_id
-  ble_client_id: ble_client_id
-  display_width: 32   # optional defaults to 32
-  display_height: 32  # optional defaults to 32
+    id: ipixel_ble_id
+    ble_client_id: ble_client_id
 
-# rgb light dummy to set on/off, brightness, color. Uses flash transition lenth parameter to set an effect
+display:
+  - platform: ipixel_ble
+    rotation: 0
+    width: 32   # optional defaults to 32
+    height: 32  # optional defaults to 32
+
 light:
   - platform: ipixel_ble
-    name: Display
-    id: display_id
+    id: control_id
+    name: Control
     default_transition_length: 0s
     initial_state:
       state: ON
@@ -65,75 +63,70 @@ light:
       - lambda:
           name: Time
           lambda: |-
-            id(display_id).set_flash_transition_length(1);
+            id(control_id).set_flash_transition_length(1);
       - lambda:
           name: Time & Date
           lambda: |-
-            id(display_id).set_flash_transition_length(2);
+            id(control_id).set_flash_transition_length(2);
       - lambda:
           name: Message
           lambda: |-
-            id(display_id).set_flash_transition_length(3);
+            id(control_id).set_flash_transition_length(3);
       - lambda:
           name: Load PNG
           lambda: |-
-            id(display_id).set_flash_transition_length(4);
+            id(control_id).set_flash_transition_length(4);
       - lambda:
-          name: load GIF
+          name: Load Graphic
           lambda: |-
-            id(display_id).set_flash_transition_length(5);
+            id(control_id).set_flash_transition_length(5);
       - lambda:
           name: Fill Color
           lambda: |-
-            id(display_id).set_flash_transition_length(6);
+            id(control_id).set_flash_transition_length(6);
       - lambda:
           name: Fill Rainbow
           lambda: |-
-            id(display_id).set_flash_transition_length(7);
+            id(control_id).set_flash_transition_length(7);
       - lambda:
           name: Random Pixels
           lambda: |-
-            id(display_id).set_flash_transition_length(8);
+            id(control_id).set_flash_transition_length(8);
       - lambda:
           name: Alarm
           lambda: |-
-            id(display_id).set_flash_transition_length(9);
-#    on_turn_on:
-#      - light.turn_on: 
-#          id: display_id
-#          effect: "Time"
-#          brightness: 70%
+            id(control_id).set_flash_transition_length(9);
 
 sensor:
-  platform: ipixel_ble
-  connect_state:
-    name: "Connect State"
-    id: connect_state
-    icon: mdi:bluetooth
-  display_width:
-    name: "Display Width"
-    id: display_width
-    icon: mdi:arrow-expand-horizontal
-  display_height:
-    name: "Display Height"
-    id: display_height
-    icon: mdi:arrow-expand-vertical
-  font_width:
-    name: "Font Width"
-    id: font_width
-    icon: mdi:arrow-left-right
-  font_height:
-    name: "Font Height"
-    id: font_height
-    icon: mdi:arrow-up-down
-  orientation:
-    name: "Orientation"
-    id: orientation
-    icon: mdi:screen-rotation
-  fun_mode:
-    name: "Fun Mode"
-    id: fun_mode
-    icon: mdi:emoticon-outline
+  - platform: ipixel_ble
+    connect_state:
+      name: "Connect State"
+      id: connect_state
+      icon: mdi:bluetooth
+    display_width:
+      name: "Display Width"
+      id: display_width
+      icon: mdi:arrow-expand-horizontal
+    display_height:
+      name: "Display Height"
+      id: display_height
+      icon: mdi:arrow-expand-vertical
+    font_width:
+      name: "Font Width"
+      id: font_width
+      icon: mdi:arrow-left-right
+    font_height:
+      name: "Font Height"
+      id: font_height
+      icon: mdi:arrow-up-down
+    orientation:
+      name: "Orientation"
+      id: orientation
+      icon: mdi:screen-rotation
+    fun_mode:
+      name: "Fun Mode"
+      id: fun_mode
+      icon: mdi:emoticon-outline
 
 number:
   - platform: ipixel_ble
@@ -190,3 +183,15 @@ text:
 time:
   - platform: homeassistant
     id: homeassistant_time
+
+# do not use until the device has at least 8MB flash available 
+#http_request:
+  
+#online_image:
+#  - url: "https://images.icon-icons.com/1533/PNG/512/3338076-emoji-face-smiley-surprised_106819.png"
+#    id: image_id
+#    format: PNG
+#    type: RGB
+#    resize: 32x32
+#    on_download_finished:
+#      component.update: ipixel_ble_id

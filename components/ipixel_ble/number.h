@@ -6,7 +6,7 @@
 #include "ipixel_ble.h"
 
 namespace esphome {
-namespace ipixel_ble {
+namespace display {
 
 class ClockStyleNumber : public number::Number, public Parented<IPixelBLE> {
  public:
@@ -56,5 +56,5 @@ class TextModeNumber : public number::Number, public Parented<IPixelBLE> {
   void control(float value) override { this->parent_->on_text_mode_number(value); }
 };
 
-}  // namespace ipixel_ble
+}  // namespace display
 }  // namespace esphome

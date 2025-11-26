@@ -4,8 +4,6 @@ import esphome.config_validation as cv
 
 from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
 
-CODEOWNERS = ["@donkracho"]
-DEPENDENCIES = ["ipixel_ble"]
 AUTO_LOAD = ["number"]
 
 CONF_CLOCK_STYLE = "clock_style"

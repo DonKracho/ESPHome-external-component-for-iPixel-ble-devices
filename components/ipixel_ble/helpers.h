@@ -29,4 +29,5 @@ namespace Helpers {
 
     //Coverts UTF8 string characters to bitmaps
     bool encodeText(const std::string& text, int font_flag, uint8_t r, uint8_t g, uint8_t b, uint &length, std::vector<uint8_t> &frame);
-}
+
+} // namespace Helpers

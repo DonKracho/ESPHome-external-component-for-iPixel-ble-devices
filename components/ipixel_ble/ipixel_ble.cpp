@@ -3,19 +3,24 @@
 #include <cstdlib>  // rand
 #include <cmath>    // sin
 #include <algorithm>
+#include <ctime>
 
 #undef ESPHOME_LOG_LEVEL
 #define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG
 #include "esphome/core/log.h"
 
-
-
 #ifdef USE_ESP32
 
 namespace esphome {
-namespace ipixel_ble {
+namespace display {
 
 const char *TAG = "ipixel_ble";
+
+// component
+void IPixelBLE::setup() {
+  // allocate framebuffer
+  state_.framebuffer_.resize(state_.mDisplayWidth * state_.mDisplayWidth * 3);
+}
 
 void IPixelBLE::loop() {
   if (this->node_state == esp32_ble_tracker::ClientState::ESTABLISHED) {
@@ -32,11 +37,30 @@ void IPixelBLE::loop() {
         alarm_effect();
       } 
     }
-    update_sensors(this->state_);
     queueTick();
+  }
+  // update sensors and numbers even tere is no connection
+  update_state_(this->state_);
+}
+
+// display component
+void IPixelBLE::update() {
+  //ESP_LOGD(TAG, "display update called");
+}
+
+void IPixelBLE::draw_pixel_at(int x, int y, Color color) {
+  // take care to ignore x,y coordinates outside the avaialble framebuffer
+  if (x >= 0 && x < state_.mDisplayWidth && y >= 0 && y < state_.mDisplayHeight)
+  {
+    int i = (y * state_.mDisplayWidth + x) * 3; // 3 bytes per pixel
+
+    state_.framebuffer_[i + 0] = color.red;
+    state_.framebuffer_[i + 1] = color.green;
+    state_.framebuffer_[i + 2] = color.blue;
   }
 }
 
+// ble client component
 void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if,
                                           esp_ble_gattc_cb_param_t *param) {
 
@@ -185,9 +209,9 @@ void IPixelBLE::write_state(light::LightState *state) {
   state->set_gamma_correct(0.0);  // avoid gamma correction on RGB values
   state->current_values_as_brightness(&fbrightness);
   state->current_values_as_rgb(&fred, &fgreen, &fblue);
-  uint8_t r = (fred * 255) / fbrightness;   // revert the brightness correction of color value
-  uint8_t g = (fgreen * 255) / fbrightness;
-  uint8_t b = (fblue * 255) / fbrightness;
+  uint8_t r = (fred * 255); // / fbrightness;   // revert the brightness correction of color value
+  uint8_t g = (fgreen * 255); // / fbrightness;
+  uint8_t b = (fblue * 255); // / fbrightness;
   uint8_t brightness = fbrightness * 100;
   bool color_changed = false;
   ESP_LOGD(TAG, "brightness: %d r: %d g: %d b: %d", brightness, r, g, b);
@@ -272,10 +296,10 @@ void IPixelBLE::write_state(light::LightState *state) {
       default:
         break; 
     }
-  } 
+  }
 }
 
-void IPixelBLE::update_sensors(const DeviceState &new_state) {
+void IPixelBLE::update_state_(const DeviceState &new_state) {
   // switch
   if (play_switch_ != nullptr && play_switch_->state != new_state.mPlayState) {
       play_switch_->publish_state(new_state.mPlayState);
@@ -424,7 +448,7 @@ void IPixelBLE::on_update_time_button_press() {
     tzset();
 
     localtime_r(&now, &timeinfo);
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    std::strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
     ESP_LOGI(TAG, "The current date/time in Berlin is: %s", strftime_buf);
 
     queuePush( iPixelCommads::setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec) );
@@ -461,33 +485,37 @@ void IPixelBLE::load_png_effect() {
 
 void IPixelBLE::load_gif_effect() {
   if (state_.mEffect == LoadGIF) {
-    queuePush( iPixelCommads::sendGIF(Helpers::hexStringToVector(state_.gif_)) );
+    // to test some graphic functions dwap a smiley
+    filled_circle(15, 15, 14, Color(255, 255, 0));
+    line(8, 20, 24, 20, Color(255, 0, 0));
+    line(10, 21, 22, 21, Color(255, 0, 0));
+    line(12, 22, 20, 22, Color(255, 0, 0));
+    rectangle( 0, 0, 32, 32, Color(0, 0, 255));
+    filled_circle(9, 9, 5, Color(255, 255, 255));
+    filled_circle(22, 9, 5, Color(255, 255, 255));
+    filled_circle(10, 10, 2, Color(0, 0, 0));
+    filled_circle(23, 10, 2, Color(0, 0, 0));
+
+    queuePush( iPixelCommads::sendPNG( state_.framebuffer_ ) );
   }
 }
-  
+
 void IPixelBLE::fill_color_effect() {
   const uint8_t width = state_.mDisplayWidth;
   const uint8_t height = state_.mDisplayHeight;
-  std::vector<uint8_t> framebuffer(width * height * 3); // 3 bytes per pixel (RGB)
 
   // Fill framebuffer with color
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
-
-      int i = (y * width + x) * 3; // 3 bytes per pixel shitet by x
-
-      framebuffer[i + 0] = (uint8_t)(state_.mR); // Red
-      framebuffer[i + 1] = (uint8_t)(state_.mG); // Green
-      framebuffer[i + 2] = (uint8_t)(state_.mB); // Blue
+      draw_pixel_at(x, y, Color(state_.mR, state_.mG, state_.mB));
     }
   }
-  queuePush( iPixelCommads::sendPNG( framebuffer ) );
+  queuePush( iPixelCommads::sendPNG( state_.framebuffer_ ) );
 }
 
 void IPixelBLE::fill_rainbow_effect() {
   const uint8_t width = state_.mDisplayWidth;
   const uint8_t height = state_.mDisplayHeight;
-  std::vector<uint8_t> framebuffer(width * height * 3); // 3 bytes per pixel (RGB)
 
   // Fill framebuffer with rainbow
   for (int y = 0; y < height; y++) {
@@ -501,12 +529,10 @@ void IPixelBLE::fill_rainbow_effect() {
       float g = fabs(sin((h + 0.33f) * 3.14159f));
       float b = fabs(sin((h + 0.66f) * 3.14159f));
 
-      framebuffer[i + 0] = (uint8_t)(r * 255); // Red
-      framebuffer[i + 1] = (uint8_t)(g * 255); // Green
-      framebuffer[i + 2] = (uint8_t)(b * 255); // Blue
+      draw_pixel_at(x, y, Color(r * 255, g * 255, b * 255));
     }
   }
-  queuePush( iPixelCommads::sendPNG( framebuffer ) );
+  queuePush( iPixelCommads::sendPNG( state_.framebuffer_ ) );
 }
 
 float frand() { return (float) rand() / RAND_MAX; }
@@ -535,7 +561,7 @@ void IPixelBLE::alarm_effect() {
   }
 }
 
-}  // namespace ipixel_ble
+}  // namespace display
 }  // namespace esphome
 
 #endif

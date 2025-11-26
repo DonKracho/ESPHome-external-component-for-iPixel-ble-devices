@@ -1,23 +1,13 @@
 import esphome.codegen as cg
-from esphome.components import ble_client, sensor
+from esphome.components import sensor
 import esphome.config_validation as cv
 from esphome.const import (
-    CONF_ALTITUDE,
     DEVICE_CLASS_EMPTY,
-    DEVICE_CLASS_TEMPERATURE,
     STATE_CLASS_MEASUREMENT,
-    UNIT_CELSIUS,
     UNIT_EMPTY,
-    UNIT_METER,
-    UNIT_SECOND,
-    UNIT_VOLT,
 )
 
-from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
-
-CODEOWNERS = ["@donkracho"]
-DEPENDENCIES = ["ipixel_ble"]
-AUTO_LOAD = ["sensor"]
+from . import CONF_IPIXEL_BLE, IPixelBLE
 
 # Sensor configurations
 CONF_CONNECT_STATE = "connect_state"
@@ -81,7 +71,7 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
         ),
     }
-).extend(ble_client.BLE_CLIENT_SCHEMA)
+)
 
 
 async def to_code(config):

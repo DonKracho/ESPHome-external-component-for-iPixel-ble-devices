@@ -1,6 +1,6 @@
 import esphome.codegen as cg
-from esphome.components import switch
 import esphome.config_validation as cv
+from esphome.components import switch
 
 from . import CONF_IPIXEL_BLE, IPixelBLE, ipixel_ble_ns
 

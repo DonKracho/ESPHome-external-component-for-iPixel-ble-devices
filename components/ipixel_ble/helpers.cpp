@@ -487,4 +487,4 @@ const uint8_t font_MORSEKP800_8x16[4096] = {
         return true;
     }
 
-}
+} // namespace Helpers
