@@ -1,5 +1,6 @@
 substitutions:
   image_resolution: 32x32
+#  image_resolution: 96x16
 
 esphome:
   name: ipixel-stripe
@@ -75,7 +76,7 @@ ble_client:
   id: ble_client_id
   # put the BLE MAC address of your device here
   mac_address: 0F:D6:54:F9:D2:C7  # 32x32
-#  mac_address: C3:AD:E7:8A:97:CA  # 192x16
+#  mac_address: C3:AD:E7:8A:97:CA  # 96x16
 
 ipixel_ble:
     id: ipixel_ble_id
@@ -117,8 +118,13 @@ display:
             break;
           case 3:
             // show some sensor values
-            it.printf(w/2, h/4, id(roboto_small), blue, TextAlign::CENTER, "x:%0.0f", id(display_width).state);
-            it.printf(w/2, h/4*3, id(roboto_small), blue, TextAlign::CENTER, "y:%0.0f", id(display_height).state);
+            it.rectangle( 0, 0, w, h, red);
+            if (h < 32) {
+              it.printf(w/2, h/2, id(roboto_small), blue, TextAlign::CENTER, "%0.0f x %0.0f", id(display_width).state, id(display_height).state);
+            } else {
+              it.printf(w/2, h/4, id(roboto_small), blue, TextAlign::CENTER, "w:%0.0f", id(display_width).state);
+              it.printf(w/2, h/4*3, id(roboto_small), blue, TextAlign::CENTER, "h:%0.0f", id(display_height).state);
+            }
             break;
           case 8:
             // reserved for png image

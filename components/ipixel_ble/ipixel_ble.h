@@ -73,7 +73,7 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void setup() override;
   void loop() override;
   void show_image(int8_t page = -1) { load_image_effect(page); }
-  void set_text(std::string &text) { state_.txt_ = text; }
+  void set_text(std::string &text) { state_.txt_ = text; text_effect(); }
   void set_effect(effects efect) { state_.effect_ = efect; }
   
   // display

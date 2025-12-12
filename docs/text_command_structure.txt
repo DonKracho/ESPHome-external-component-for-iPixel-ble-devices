@@ -1,0 +1,49 @@
+For my 96x16 display the iPixel Color App allows to set a text background color.
+This is working for the 32x32 display too but is not offered in the app.
+
+My current findings in reverse engineering the text command:
+ 
+struct text_command {
+  uint16_t cmd_len;                      // byte 1-2 little endian
+  uint8_t  fixed1[] { 0x00, 0x01, 0x00 };// byte 3-5 preamble  
+  uint16_t cmd_len - 0x0f;               // byte 6-7 maybe a depricated text command not knowing all attributes
+  uint8_t  fixed2[] {0x00, 0x00 };       // byte 8-9
+  uint32_t crc;                          // byte 10-13 checksum of payload little endian
+  uint8_t  unknown { 0x00 };             // byte 14
+  // here the payload starts
+  uint8_t  save_slot[1];                 // byte 15 used by program feature
+  uint16_t char_count;                   // byte 16-17 little endian
+  uint8_t  fixed[2] { 0x01, 0x01 };      // byte 18-19 some kind of place holders?
+  uint8_t  animation_mode                // byte 20 
+  uint8_t  animation_speed;              // byte 21
+  uint8_t  char_rainbow_mode;            // byte 22
+  uint8_t  char_color[3];	         // byte 23-25 character color {r, g, b} applies when rainbow mode set to 1
+  uint8_t  back_rainbow_mode;            // byte 26
+  uint8_t  back_color[3];	         // byte 27-29 background color {r, g, b} applies when rainbow mode set to 1
+  union {
+    struct 8_16 {                        // fixed 8x16 font bitmap
+      uint8_t flag {0x00};
+      uint8_t color[3];                  // {r, g, b} individual character color applied for rainbow_mode 0 only
+      uint8_t bitmap[8x16/8];
+    };
+    struct 16_16 {                       // fixed 16x16 font bitmap
+      uint8_t flag {0x01};
+      uint8_t color[3];                  // {r, g, b} individual character color applied for rainbow_mode 0 only
+      uint8_t bitmap[16x16/8];
+    };
+    struct 16_32 {                       // fixed 16x32 font bitmap
+      uint8_t flag {0x02};
+      uint8_t color[3];                  // {r, g, b} individual character color applied for rainbow_mode 0 only
+      uint8_t bitmap[16x32/8];
+    };
+    struct x_y {                         // variable font bitmap
+      uint8_t flag {0x08};
+      uint8_t color[3];                  // {r, g, b} individual character color applied for rainbow_mode 0 only
+      uint8_t used_bits_per_row;         // x (written row data must be a multiple of bytes)
+      uint8_t rows;                      // y
+      uint8_t bitmap[16x32/8];
+    };
+  } char_bitmap_data[char_count];
+};
+
+

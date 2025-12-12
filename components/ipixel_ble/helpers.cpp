@@ -419,15 +419,20 @@ const uint8_t font_MORSEKP800_8x16[4096] = {
 
     bool encodeText(const std::string& text, int font_flag, uint8_t r, uint8_t g, uint8_t b, size_t &length, std::vector<uint8_t> &frame) {
 
-		// font_flag 0: 8x16 1: 16x16 2: 16x32 3: 8x16 -> 0x80 
+        // font_flag 0: 8x16 1: 16x16 2: 16x32 3: 8x16 -> 0x80 
+
+        uint8_t spaces = 0;
 
         for (char character : text) {
 
-            if (!utf8_to_font_mapper(character))
-            {
+            if (!utf8_to_font_mapper(character)) {
                 // if the mapping function retunrs false noting gets printed
                 length--;   // ignore this character in length calculation!
                 continue;
+            }
+
+            if (character == 0x20) {
+               spaces++;	// just for testing individual character colors
             }
 
             const uint8_t *line_data = &font_MORSEKP800_8x16[character * 16];
@@ -472,9 +477,20 @@ const uint8_t font_MORSEKP800_8x16[4096] = {
 
             if (!char_bytes.empty()) {
                 frame.push_back(font_flag >= 3 ? 0x80 : font_flag);
-                frame.push_back(r);
-                frame.push_back(g);
-                frame.push_back(b);
+                int suffle_color = spaces % 3;
+                if (suffle_color == 1) {
+                  frame.push_back(g);
+                  frame.push_back(b);
+                  frame.push_back(r);
+                } else if (suffle_color == 2) {
+                  frame.push_back(b);
+                  frame.push_back(r);
+                  frame.push_back(g);
+                } else {
+                  frame.push_back(r);
+                  frame.push_back(g);
+                  frame.push_back(b);
+				}
                 if (font_flag == 3) {
                   frame.push_back(8);
                   frame.push_back(16);

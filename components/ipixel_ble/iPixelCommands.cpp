@@ -228,16 +228,14 @@ namespace iPixelCommads {
         if (length == 0 || length > 128 || font_flag > 4) return {};
 
         // --- Header calculation ---
-        const uint16_t HEADER_1_MG = 0x1D;
-        const uint16_t HEADER_3_MG = 0x0E;
+        const uint16_t HEADER_LENGTH = 0x1D;
         // font_flag 0: 8x16 1: 16x16 2: 16x32 3: 8x16 -> 0x80 
         const uint16_t CHAR_HEADER = (font_flag >= 3) ? 6 : 4;
         const uint16_t CHAR_BYTES  = (font_flag < 1) ? 16 : (font_flag < 2) ? 32 : (font_flag < 3) ? 64 : (font_flag < 4) ? 16 : 32;
         
-        uint16_t header_gap = CHAR_HEADER + CHAR_BYTES;
+        uint16_t char_bytes = CHAR_HEADER + CHAR_BYTES;
 
-        uint16_t header_1_val = HEADER_1_MG + length * header_gap;
-        uint16_t header_3_val = HEADER_3_MG + length * header_gap;
+        uint16_t cmd_length = HEADER_LENGTH + length * char_bytes;
 
         std::vector<uint8_t> header;
 
@@ -250,11 +248,11 @@ namespace iPixelCommads {
             header.insert(header.end(), switched.begin(), switched.end());
         };
 
-        appendHeader16(header_1_val); //Byte 1-2
+        appendHeader16(cmd_length); //Byte 1-2
         header.push_back(0x00); //Byte 3
         header.push_back(0x01); //Byte 4
         header.push_back(0x00); //Byte 5
-        appendHeader16(header_3_val); //Byte 6-7
+        appendHeader16(cmd_length - 0x0f); //Byte 6-7
         header.push_back(0x00); //Byte 8
         header.push_back(0x00); //Byte 9
 
@@ -273,12 +271,12 @@ namespace iPixelCommads {
 
         payload.push_back((uint8_t)(animation));
         payload.push_back((uint8_t)(speed));
+    
+        // the following char and backgrond colors do apply when rainbow mode is set to one only
         payload.push_back((uint8_t)(rainbow_mode));
-
-        // Append "ffffff00000000" as bytes
-        payload.push_back(0xFF); payload.push_back(0xFF); payload.push_back(0xFF);
-        payload.push_back(0x00); payload.push_back(0x00); payload.push_back(0x00);
-        payload.push_back(0x00);
+        payload.push_back(r); payload.push_back(g); payload.push_back(b);           // char color
+        payload.push_back((uint8_t)(rainbow_mode));
+        payload.push_back(0xA0); payload.push_back(0xA0); payload.push_back(0x00);  // background color (dark yellow for testing)
 
         // Append encoded characters
         payload.insert(payload.end(), chars_bytes.begin(), chars_bytes.end());
@@ -296,13 +294,13 @@ namespace iPixelCommads {
         return result;
     }
 
-    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, bool is_gif) {
-        std::vector<uint8_t> size_bytes = Helpers::getFrameSize(data, 4);
-        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(data);
+    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, bool is_gif, uint8_t save_slot) {
+        std::vector<uint8_t> size_bytes = Helpers::getFrameSize(data, 4);       // 4 bytes little-endian
+        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(data);    // 4 bytes little-endian
 
         std::vector<uint8_t> result;
 
-        const size_t data_size = data.size(); 
+        const size_t data_size = data.size();
         const size_t chunk_size = 12 * 1024;
         size_t chunk_index = 0;
         size_t pos = 0;
@@ -315,31 +313,28 @@ namespace iPixelCommads {
             ESP_LOGD(TAG, "data_size=%d chunk_end=%d", data_size, chunk_end);
 
             uint8_t option = chunk_index == 0 ? 0x00 : 0x02;
-            uint8_t serial = chunk_index == 0 ? 0x01 : 0x65;
 
-            result.insert(result.end(), { 0xFF, 0xFF }); // Placeholder for Frame Size
+            result.insert(result.end(), { 0xFF, 0xFF });                        // placeholder for command chunk size
 
             if (is_gif) {
-                result.insert(result.end(), { 0x03, 0x00, option });                // prefix
-                result.insert(result.end(), size_bytes.begin(), size_bytes.end());  // size (4 bytes)
-                result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());    // checksum
-                result.insert(result.end(), { 0x02, serial });                      // header end
+                result.insert(result.end(), { 0x03, 0x00, option });            // animated prefix
             } else {          
-                result.insert(result.end(), { 0x02, 0x00, option });                // prefix
-                result.insert(result.end(), size_bytes.begin(), size_bytes.end());  // size (4 bytes)
-                result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());    // checksum
-                result.insert(result.end(), { 0x00, 0x65 });                        // header end
+                result.insert(result.end(), { 0x02, 0x00, option });            // raw prefix
             }
+
+            result.insert(result.end(), size_bytes.begin(), size_bytes.end());  // size (4 bytes)
+            result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());    // checksum (4 bytes)
+            result.insert(result.end(), { 0x02, save_slot });                   // header end
 
             result.insert(result.end(), data.begin() + pos, data.begin() + pos + chunk_end); // insert data chunk
 
             curr_size = result.size() - accu_size;
             accu_size += curr_size;
 
-            //Replace Placeholder for Frame Size
-            std::vector<uint8_t> frameSize = Helpers::getFrameSize(curr_size, 2);
-            result[0] = frameSize[0];
-            result[1] = frameSize[1];
+            // replace placeholder for command data size
+            std::vector<uint8_t> cmdChunkSize = Helpers::getFrameSize(curr_size, 2);
+            result[0] = cmdChunkSize[0];
+            result[1] = cmdChunkSize[1];
 
             chunk_index += 1;
             pos = chunk_end;
