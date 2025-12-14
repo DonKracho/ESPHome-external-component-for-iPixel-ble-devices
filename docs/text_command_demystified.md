@@ -10,8 +10,8 @@ struct text_command {
   uint8_t  fixed2[] {0x00, 0x00 };       // byte 8-9
   uint32_t crc;                          // byte 10-13 checksum of payload little endian
   uint8_t  unknown { 0x00 };             // byte 14
-  // here the payload starts
   uint8_t  save_slot[1];                 // byte 15 used by program feature
+  // here the payload starts
   uint16_t char_count;                   // byte 16-17 little endian
   uint8_t  fixed[2] { 0x01, 0x01 };      // byte 18-19 some kind of place holders?
   uint8_t  animation_mode                // byte 20 
