@@ -88,7 +88,7 @@ struct delete_list_command {
 ```
 
 ### Firmware Versions  
-when the IPixel App connecte it starts this version gettee two times.
+after the iPixel App connected to the device it sends a version getter two times.
 
 ```
 struct notify_firmWare_versions {  
