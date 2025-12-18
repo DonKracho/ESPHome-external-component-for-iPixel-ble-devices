@@ -1,9 +1,9 @@
-##iPixel BLE command stucture##
+##iPixel BLE command stucture  
 
 All commads send to the display start with the command length encodes as 2 byte little endian followed by a fixed command identiier.
 If the command length exceeds 12KB it is split up in chunks. This may happen for large gif animations only.
 
-###Text Command###
+###Text Command  
 The text command allows up to 500 characters. It encodes the characters to font bitmaps.
 It has attributes for animation and global colors. Tor 
 
@@ -52,7 +52,7 @@ struct text_command {
 };
 ```
 
-###Program List Command###
+###Program List Command  
 The iPixel Color App has a "Program List" feature. There you can checkmark within a list of effects stored on the mobile already.
 On pressing the Play button all checked effects are send to the display and shown in a endless sequence loop.
 
@@ -87,7 +87,7 @@ struct delete_list_command {
 };
 ```
 
-###Firmware Versions###
+###Firmware Versions  
 when the IPixel App connecte it starts this version gettee two times.
 
 ```
