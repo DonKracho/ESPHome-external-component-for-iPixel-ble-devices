@@ -44,7 +44,7 @@ class DeviceState {
   // numbers
   uint8_t mClockStyle{7};
   uint8_t mAnimationSpeed{100};
-  uint8_t mSlotNumber{1};
+  uint8_t mSlotNumber{0};
 
   // color picker
   uint8_t mR{0xFF};
@@ -52,6 +52,11 @@ class DeviceState {
   uint8_t mB{0xFF};
   uint8_t mBrightness{100};
   
+  // backgrounf color
+  uint8_t mRBack{0x00};
+  uint8_t mGBack{0x00};
+  uint8_t mBBack{0x00};
+
   // exclusive numbers (optipnal)
   uint8_t mXpos{0}; // setPixel 
   uint8_t mYpos{0}; // setPixel 
@@ -59,6 +64,8 @@ class DeviceState {
   bool    mShowDate{false};
   uint8_t mAnimationMode{1}; // sendText
   uint8_t mTextMode{0};      // sendText
+
+  std::vector<uint8_t> mProgramSlots;
 
   // frame buffer for RGB display graphics
   std::vector<uint8_t> framebuffer_;

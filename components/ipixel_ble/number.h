@@ -16,12 +16,12 @@ class ClockStyleNumber : public number::Number, public Parented<IPixelBLE> {
   void control(float value) override { this->parent_->on_clock_style_number(value); }
 };
 
-class SlotNumberNumber : public number::Number, public Parented<IPixelBLE> {
+class LambdaSlotNumber : public number::Number, public Parented<IPixelBLE> {
  public:
-  SlotNumberNumber() = default;
+  LambdaSlotNumber() = default;
 
  protected:
-  void control(float value) override { this->parent_->on_slot_number_number(value); }
+  void control(float value) override { this->parent_->on_lambda_slot_number(value); }
 };
 
 class AnnimationModeNumber : public number::Number, public Parented<IPixelBLE> {

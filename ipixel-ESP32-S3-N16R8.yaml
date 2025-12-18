@@ -1,19 +1,19 @@
 substitutions:
-  image_resolution: 32x32
-#  image_resolution: 96x16
+  #image_resolution: 32x32
+  image_resolution: 96x16
 
 esphome:
   name: ipixel-stripe
   friendly_name: LED Pixel Stripe
-  libraries:
-    - ErriezCRC32 = https://github.com/donkracho/ErriezCRC32
-  on_boot:
-    priority: 200  
-    then:
-      - wait_until:  
-          condition:
-            wifi.connected: 
-          timeout: 5s
+#  libraries:
+#    - ErriezCRC32 = https://github.com/donkracho/ErriezCRC32
+#  on_boot:
+#    priority: 200  
+#    then:
+#      - wait_until:  
+#          condition:
+#            wifi.connected: 
+#          timeout: 5s
 
 esp32:
   variant: esp32s3
@@ -52,9 +52,17 @@ wifi:
     - delay: 1000ms
     - component.update: bmp_image_id
 
+# In combination with the `ap` this allows the user
+# to provision wifi credentials to the device via WiFi AP.
+captive_portal:
+
+# To have a "next url" for improv serial
+web_server:
+  port: 80
+
 external_components:
   - source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices/components
-#  - source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
+  #- source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
     refresh: 0s
     components: [ipixel_ble]
 
@@ -75,8 +83,8 @@ esp32_ble_tracker:
 ble_client:
   id: ble_client_id
   # put the BLE MAC address of your device here
-  mac_address: 0F:D6:54:F9:D2:C7  # 32x32
-#  mac_address: C3:AD:E7:8A:97:CA  # 96x16
+  #mac_address: 0F:D6:54:F9:D2:C7  # 32x32
+  mac_address: C3:AD:E7:8A:97:CA  # 96x16
 
 ipixel_ble:
     id: ipixel_ble_id
@@ -92,13 +100,14 @@ display:
           auto red = Color(255, 0, 0);
           auto green = Color(0, 255, 0);
           auto blue = Color(0, 0, 255);
+          auto yellow =  Color(255, 255, 0);
           auto black = Color(0, 0, 0);
           auto white = Color(255, 255, 255);
           auto w = it.get_width();
           auto h = it.get_height();
-          int8_t index = id(slot_number).state;
+          int8_t index = id(lambda_slot).state;
           switch (index) {
-          case 1:
+          case 0:
             // draw a simple smiley
             it.filled_circle(15, 15, 14, Color(255, 255, 0));
             it.line(8, 20, 24, 20, red);
@@ -110,13 +119,13 @@ display:
             it.filled_circle(10, 10, 2, Color(0, 0, 0));
             it.filled_circle(23, 10, 2, Color(0, 0, 0));
             break;
-          case 2:
+          case 1:
             // draw text
             it.filled_rectangle(0, 0, w, 6, red);
             it.filled_rectangle(0, h-6, w, 6, red);
             it.print(w/2, h/2, id(roboto), white, TextAlign::CENTER, id(text_id).state.c_str());
             break;
-          case 3:
+          case 2:
             // show some sensor values
             it.rectangle( 0, 0, w, h, red);
             if (h < 32) {
@@ -126,15 +135,22 @@ display:
               it.printf(w/2, h/4*3, id(roboto_small), blue, TextAlign::CENTER, "h:%0.0f", id(display_height).state);
             }
             break;
-          case 8:
+          case 3:
+            // draw primitives
+            it.filled_rectangle(0, 0, w, h, red);
+            it.filled_rectangle(w/6, h/6, (w*4/6)+1, (h*4/6)+1, white);
+            it.filled_rectangle(w/3, h/3, (w/3)+2, (h/3)+2, blue);
+            it.filled_triangle(1, h-2, w-2, h-2, w/2, h/2-1, yellow);
+            break;
+          case 13:
             // reserved for png image
             it.image(0, 0, id(png_image_id));
             break;
-          case 9:
+          case 14:
             // reserved for jpg image
             it.image(0, 0, id(jpg_image_id));
             break;
-          case 10:
+          case 15:
             // reserved for bmp image
             it.image(0, 0, id(bmp_image_id));
             break;
@@ -143,8 +159,6 @@ display:
             it.printf(w/2, h/2, id(roboto), white, TextAlign::CENTER, "%d", index);
             break;
           }
-          //index += 1;
-          //if (index > 5 ) index = 1;
 
 light:
   - platform: ipixel_ble
@@ -171,10 +185,6 @@ light:
           name: Load Image
           lambda: |-
             id(ipixel_ble_id).set_effect(ipixel_ble::effects::LoadImage);
-      #- lambda:
-      #    name: Load GIF
-      #    lambda: |-
-      #      id(ipixel_ble_id).set_effect(ipixel_ble::effects::LoadGIF);
       - lambda:
           name: Fill Color
           lambda: |-
@@ -222,17 +232,17 @@ sensor:
       name: "Fun Mode"
       id: fun_mode
       icon: mdi:emoticon-outline
+    program_slot:
+      name: "Program Slot"
+      id: program_slot
+      icon: mdi:numeric-1-box-multiple-outline
+    upload_queue:
+      name: "Upload Queue"
+      id: upload_queue
+      icon: mdi:counter
 
 number:
   - platform: ipixel_ble
-    clock_style:
-      name: "Clock style"
-      id: clock_style
-      icon: mdi:clock-digital
-    slot_number:
-      name: "Lambda Slot"
-      id: slot_number
-      icon: mdi:numeric-1-box-multiple-outline
     annimation_mode:
       name: "Annimation Mode"
       id: annimation_mode
@@ -241,10 +251,18 @@ number:
       name: "Annimation Speed"
       id: annimation_speed
       icon: mdi:play-speed
+    clock_style:
+      name: "Clock style"
+      id: clock_style
+      icon: mdi:clock-digital
     font_flag:
       name: "Font Flag"
       id: font_flag
       icon: mdi:format-size
+    lambda_slot:
+      name: "Image Slot"
+      id: lambda_slot
+      icon: mdi:numeric-1-box-multiple-outline
     text_mode:
       name: "Text Mode"
       id: text_mode
@@ -252,10 +270,6 @@ number:
 
 button:
   - platform: ipixel_ble
-    delete_slot:
-      name: "Delete Slot"
-      id: delete_slot_button
-      internal: true
     update_time:
       name: "Update Time"
       id: update_time_button
@@ -263,21 +277,21 @@ button:
 switch:
   - platform: ipixel_ble
     play:
-      name: "Play"
+      name: "Program List"
       id: play_switch
-      internal: true
 
 text:
   - platform: template 
     name: Text or Image URL
     id: text_id
     mode: text
-    initial_value: "Zwölf Boxkämpfer jagen Viktor quer über den großen Sylter Deich 1234567890"
+    initial_value: "Überall dieselbe alte Leier. Das Layout ist fertig, der Text lässt auf sich warten. Damit das Layout nun nicht nackt im Raume steht und sich klein und leer vorkommt, springe ich ein: der Blindtext. Genau zu diesem Zwecke erschaffen, immer im Schatten."
     optimistic: true
     icon: "mdi:keyboard-settings-outline"
     update_interval: never
     on_value:
       - lambda: |-
+          id(upload_queue).publish_state(1);
           if (x.rfind(".png") != std::string::npos) {
             id(png_image_id).set_url(x);
             id(png_image_id).update();
@@ -289,17 +303,27 @@ text:
             id(bmp_image_id).update();
           } else if (x.rfind(".gif") != std::string::npos) {
             ESP_LOGD("text_id", "gif not implemented");
+          } else if (x.rfind(".col") != std::string::npos) {
+            id(ipixel_ble_id).set_color(x.substr(0, x.size() - 4));
+          } else if (x.rfind(".bgc") != std::string::npos) {
+            id(ipixel_ble_id).set_background_color(x.substr(0, x.size() - 4));
+          } else if (x.rfind(".lst") != std::string::npos) {
+            id(ipixel_ble_id).set_program_list(x.substr(0, x.size() - 4));
+          } else if (x.rfind(".del") != std::string::npos) {
+            id(ipixel_ble_id).del_program_list(x.substr(0, x.size() - 4));
+          } else if (x.rfind(".img") != std::string::npos) {
+            uint8_t number = std::stoi(x.substr(0, x.size() - 4));
+            if (number >= 0 && number <= 15) id(ipixel_ble_id).show_image(number);
           } else {
             ESP_LOGD("text_id", "no image extention found, setting text");
             id(ipixel_ble_id).set_text(x);
-            id(ipixel_ble_id).show_image(2);
+            if (id(play_switch).state == 0) id(ipixel_ble_id).show_image(1);
           }
 
 time:
   - platform: homeassistant
     id: homeassistant_time
 
-# do not use until the device has at least 4MB PSRAM available 
 http_request:
   
 online_image: #https://icon-icons.com/
@@ -311,7 +335,7 @@ online_image: #https://icon-icons.com/
     resize: ${image_resolution}
     on_download_finished:
       - lambda: |-
-          id(ipixel_ble_id).show_image(8);
+          id(ipixel_ble_id).show_image(13);
   - id: jpg_image_id
     url: "https://raw.githubusercontent.com/DonKracho/ESPHome-external-component-for-iPixel-ble-devices/refs/heads/main/sample-images/32x32/jpg/flower.jpg"
     format: JPEG
@@ -320,7 +344,7 @@ online_image: #https://icon-icons.com/
     resize: ${image_resolution}
     on_download_finished:
       - lambda: |-
-          id(ipixel_ble_id).show_image(9);
+          id(ipixel_ble_id).show_image(14);
   - id: bmp_image_id
     url: "https://raw.githubusercontent.com/DonKracho/ESPHome-external-component-for-iPixel-ble-devices/refs/heads/main/sample-images/32x32/bmp/smiley-with-glasses-and-mustache.bmp"
     format: BMP
@@ -328,4 +352,4 @@ online_image: #https://icon-icons.com/
     resize: ${image_resolution}
     on_download_finished:
       - lambda: |-
-          id(ipixel_ble_id).show_image(10);
+          id(ipixel_ble_id).show_image(15);

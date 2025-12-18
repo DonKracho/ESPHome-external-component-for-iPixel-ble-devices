@@ -4,9 +4,7 @@
 #include <cmath>    // sin
 #include <algorithm>
 #include <ctime>
-
-//#undef ESPHOME_LOG_LEVEL
-//#define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG
+#include <sstream>
 #include "esphome/core/log.h"
 
 #ifdef USE_ESP32
@@ -38,21 +36,28 @@ bool DeviceInfo::get_device_info(const std::vector<uint8_t> &res) {
   // byte 10 password flag ?
   // byte 11 static 0x01 ?
 
-  if (res.size() < 5) {
-    return false;
+  if (res.size() < 6) {
+    return false; // the standard cmd notify of 5 bytes length is out of focus here
   }
 
-  auto const type = res[4];
-  width_ =  display_size_[type].first;
-  height_ =  display_size_[type].second;
-
-  if (res.size() >= 11) {
-    password_flag_ = res[10];
+  if (res[2] == 0x05 && res[3] == 0x80) {
+    ESP_LOGD(TAG, "device info: MCU fw=%d.%02d BLE fw=%d.%02d", res[4], res[5], res[6], res[7]);
+    return false; // nice to know, but interested in the display size information only
   }
+  
+  if (res[2] == 0x01 && res[3] == 0x80) {
+    auto const type = res[4];
+    width_ =  display_size_[type].first;
+    height_ =  display_size_[type].second;
 
-  ESP_LOGD(TAG, "device info: name=%s size=%dx%d", name_.c_str(), width_, height_);
+    if (res.size() >= 11) {
+      password_flag_ = res[10];
+    }
+    ESP_LOGD(TAG, "device info: name=%s size=%dx%d", name_.c_str(), width_, height_);
+  }
 
   return width_ > 0 && height_ > 0;
+;
 }
 
 // component
@@ -76,6 +81,7 @@ void IPixelBLE::loop() {
 
       if (this->last_update_ + 5000 < tick) {
         this->last_update_ = tick;
+        //this->is_ready_ = true;
         //load_gif_effect();  // loads a entire RGB frame, do not stress the BLE connection to much
       }
     }
@@ -144,7 +150,6 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
         // now we are connected to the device and can collect some informations about the device
         this->node_state = esp32_ble_tracker::ClientState::ESTABLISHED;
 	      this->state_.mConnectionState = 1;
-        
         // get writer handle
         auto *characteristic = this->parent()->get_characteristic(this->service_uuid_, this->characteristic_uuid_);
         if (characteristic != nullptr && (characteristic->properties & ESP_GATT_CHAR_PROP_BIT_WRITE) != 0) {
@@ -162,6 +167,8 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
         } else {
           ESP_LOGD(TAG, "Access characteristic not found.");
         }
+        
+        this->is_ready_ = true;
 
         // initialize device: synchronize time. This commands also forces the device info notification!
         this->on_update_time_button_press();  // triggers time update
@@ -174,6 +181,8 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
         std::vector<uint8_t> data(param->notify.value, param->notify.value + param->notify.value_len);
         this->on_notification_received(data);
       }
+      upload_queue_->publish_state(0);
+      this->is_ready_ = true;
       break;
 
     case ESP_GATTC_CFG_MTU_EVT: // Maximun Transfer Unit
@@ -258,20 +267,18 @@ bool IPixelBLE::ble_register_for_notify(esp_gatt_if_t gattc_if, esp_bd_addr_t re
 void IPixelBLE::on_notification_received(const std::vector<uint8_t> &data) {
   ESP_LOGD(TAG, "Notification received: %s", format_hex_pretty(data).c_str());
   // each command send to the device notifys with a 5 byte response starting with 0x05. Ignore these notifys!
-  if (data[0] != 0x05 && data[4] >= 0x80) {
-    if (device_info_.get_device_info(data)) {
-      // if no explicit display size set in esphome yaml file, use the display size detected
-      if (state_.mDisplayWidth == 0) { 
-        state_.mDisplayWidth = device_info_.width_;
-      }
-      if (state_.mDisplayHeight == 0) {
-        state_.mDisplayHeight = device_info_.height_;
-      }
-      size_t new_size = state_.mDisplayWidth * state_.mDisplayHeight * 3;
-      if (state_.framebuffer_.size() != new_size) { 
-        // allocate framebuffer
-        state_.framebuffer_.resize(new_size);
-      }
+  if (device_info_.get_device_info(data)) {
+    // if no explicit display size set in esphome yaml file, use the display size detected
+    if (state_.mDisplayWidth == 0) { 
+      state_.mDisplayWidth = device_info_.width_;
+    }
+    if (state_.mDisplayHeight == 0) {
+      state_.mDisplayHeight = device_info_.height_;
+    }
+    size_t new_size = state_.mDisplayWidth * state_.mDisplayHeight * 3;
+    if (state_.framebuffer_.size() != new_size) { 
+      // allocate framebuffer
+      state_.framebuffer_.resize(new_size);
     }
   }
 }
@@ -296,12 +303,12 @@ void IPixelBLE::write_state(light::LightState *state) {
   if (state_.mPowerState != on) {
     state_.mPowerState = on;
     if (on) {
-      queuePush( iPixelCommads::ledOn() );
+      queuePush( iPixelCommads::setPower(true) );
       state_.effect_ = state_.mEffect;
       //state_.mEffectRestore = true;
     }
     else {
-      queuePush( iPixelCommads::ledOff() );
+      queuePush( iPixelCommads::setPower(false) );
 	  }
   }
   if (!on) return;
@@ -326,7 +333,14 @@ void IPixelBLE::write_state(light::LightState *state) {
     queuePush( iPixelCommads::setBrightness( state_.mBrightness ) );
   }
   
-  if (state_.mEffect != state_.effect_ || color_changed) {
+  if ((state_.mEffect != state_.effect_ || color_changed) && !is_starting()) {
+    if (play_switch_ != nullptr && play_switch_->state) {
+      on_play_switch(false);
+    }
+    if (state_.mEffect == RandomPixels) { // restore brightness
+       is_ready_ = true;
+       upload_queue_->publish_state(0);
+    }
     if (state_.mEffect == Alarm) { // restore brightness
        queuePush( iPixelCommads::setBrightness( state_.mBrightness ) );
     }
@@ -336,18 +350,18 @@ void IPixelBLE::write_state(light::LightState *state) {
     switch (state_.effect_)
     {
       case None:
-        queuePush(iPixelCommads::clear());  
+        queuePush(iPixelCommads::clear());
         break;
       case Time:
         state_.mShowDate = false;
-        time_date_effect();  
+        time_date_effect();
         break;
       case TimeDate:
         state_.mShowDate = true;
-        time_date_effect();  
+        time_date_effect();
         break;
       case Message:
-        text_effect();  
+        text_effect();
         break;
       case LoadImage:
         load_image_effect();
@@ -365,7 +379,7 @@ void IPixelBLE::write_state(light::LightState *state) {
         random_pixel_effect();
         break;
       case Alarm:
-        alarm_effect();  
+        alarm_effect();
         break;
       default:
         break; 
@@ -374,10 +388,6 @@ void IPixelBLE::write_state(light::LightState *state) {
 }
 
 void IPixelBLE::update_state_(const DeviceState &new_state) {
-  // switch
-  if (play_switch_ != nullptr && play_switch_->state != new_state.mPlayState) {
-      play_switch_->publish_state(new_state.mPlayState);
-  }
   // numbers
   if (annimation_mode_number_ != nullptr && annimation_mode_number_->state != new_state.mAnimationMode) {
     annimation_mode_number_->publish_state(new_state.mAnimationMode);
@@ -385,14 +395,14 @@ void IPixelBLE::update_state_(const DeviceState &new_state) {
   if (annimation_speed_number_ != nullptr && annimation_speed_number_->state != new_state.mAnimationSpeed) {
     annimation_speed_number_->publish_state(new_state.mAnimationSpeed);
   }
-  if (font_flag_number_ != nullptr && font_flag_number_->state != new_state.mFontFlag) {
-    font_flag_number_->publish_state(new_state.mFontFlag);
-  }
   if (clock_style_number_ != nullptr && clock_style_number_->state != new_state.mClockStyle) {
     clock_style_number_->publish_state(new_state.mClockStyle);
   }
-  if (slot_number_number_ != nullptr && slot_number_number_->state != new_state.mSlotNumber) {
-    slot_number_number_->publish_state(new_state.mSlotNumber);
+  if (font_flag_number_ != nullptr && font_flag_number_->state != new_state.mFontFlag) {
+    font_flag_number_->publish_state(new_state.mFontFlag);
+  }
+  if (lambda_slot_number_ != nullptr  && lambda_slot_number_->state != new_state.mSlotNumber) {
+     lambda_slot_number_->publish_state(new_state.mSlotNumber);
   }
   if (text_mode_number_ != nullptr && text_mode_number_->state != new_state.mTextMode) {
     text_mode_number_->publish_state(new_state.mTextMode);
@@ -422,7 +432,8 @@ void IPixelBLE::update_state_(const DeviceState &new_state) {
 }
 
 void IPixelBLE::queueTick() {
-    if (queue.empty()) return;
+    if (queue.empty() || !is_ready_) return;
+    
     //Get command from queue
     std::vector<uint8_t> &command = queue.front();
 
@@ -436,15 +447,17 @@ void IPixelBLE::queueTick() {
     command.erase(command.begin(), command.begin() + chunkSize);
 
     //Remove command if empty
-    if (command.empty()) queue.erase(queue.begin());
-
-    //Do not overload BLE
-    delay(100);
+    if (command.empty()) {
+      queue.erase(queue.begin());
+      is_ready_ = false; // wait for notification
+    }
 
     // disconnect if write fails
     if (!write_ok) {
       ESP_LOGE(TAG, "BLE write failed or no ACK received, disconnecting...");
       client->disconnect();
+    } else {
+      upload_queue_->publish_state(upload_queue_->state + 1);
     }
 }
 
@@ -461,22 +474,22 @@ void IPixelBLE::on_clock_style_number(float value) {
   time_date_effect();
 }
 
-void IPixelBLE::on_slot_number_number(float value) {
+void IPixelBLE::on_lambda_slot_number(float value) {
   if (state_.mSlotNumber != value) {
     state_.mSlotNumber = value;
-    slot_number_number_->publish_state(value);
+    if (lambda_slot_number_ != nullptr) lambda_slot_number_->publish_state(value);
     load_image_effect();
   }
 }
 
 void IPixelBLE::on_annimation_mode_number(float value) {
   state_.mAnimationMode = value;
-  text_effect();
+  if (!is_starting()) text_effect();
 }
 
 void IPixelBLE::on_annimation_speed_number(float value) {
   state_.mAnimationSpeed = value;
-  text_effect();
+  if (!is_starting()) text_effect();
 }
 
 void IPixelBLE::on_font_flag_number(float value) {
@@ -510,15 +523,12 @@ void IPixelBLE::on_font_flag_number(float value) {
   } 
 
   state_.mFontFlag = font_flag;
-  text_effect();
+  if (!is_starting()) text_effect();
 }
 
 void IPixelBLE::on_text_mode_number(float value) {
   state_.mTextMode = value;
-  text_effect();
-}
-
-void IPixelBLE::on_delete_slot_button_press() {
+  if (!is_starting()) text_effect();
 }
 
 void IPixelBLE::on_update_time_button_press() {
@@ -536,16 +546,32 @@ void IPixelBLE::on_update_time_button_press() {
     ESP_LOGI(TAG, "The current date/time in Berlin is: %s", strftime_buf);
 
     queuePush( iPixelCommads::setTime(timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec) );
+    queuePush( iPixelCommads::notifyFirmwareVersions() );
 }
 
 void IPixelBLE::on_play_switch(bool state) {
-  // reserved for program play
   state_.mPlayState = state;
+  // check if a list is avalable
+  state_.mPlayState = (get_slot(false) > 0) ? true : false;
+
+  // update switch state and send playlist command
+  if (play_switch_ != nullptr && play_switch_->state != state_.mPlayState) {
+      play_switch_->publish_state(state_.mPlayState);
+      if (state_.mPlayState) {
+        queuePush( iPixelCommads::startProgramList(state_.mProgramSlots) );
+      } else {
+        state_.mProgramSlots.clear();
+        std::vector<uint8_t> live {0};
+        queuePush( iPixelCommads::startProgramList(live) );
+      }
+  }
 }
 
 void IPixelBLE::text_effect() {
-  if (state_.mEffect == Message) {
-    queuePush( iPixelCommads::sendText(state_.txt_, state_.mAnimationMode, state_.mSlotNumber, state_.mAnimationSpeed, state_.mR, state_.mG, state_.mB, state_.mTextMode, state_.mFontFlag) );
+  if (state_.mEffect == Message || is_starting()) {
+    queuePush( iPixelCommads::sendText(state_.txt_, state_.mAnimationMode, state_.mAnimationSpeed,
+      Color{state_.mR, state_.mG, state_.mB}, state_.mTextMode, state_.mFontFlag, get_slot(),
+      Color{state_.mRBack, state_.mGBack, state_.mBBack}) );
   }
 }
 
@@ -562,13 +588,13 @@ void IPixelBLE::time_date_effect() {
 }
 
 void IPixelBLE::load_image_effect(int8_t page) {
-  if (state_.mEffect == LoadImage) {
-    if (page > 0) {
+  if (state_.mEffect == LoadImage || is_starting()) {
+    if (page >= 0 && page < 16) {
       state_.mSlotNumber = page;
-      slot_number_number_->publish_state(page);  
+      if (lambda_slot_number_ != nullptr) lambda_slot_number_->publish_state(page);
     }
     Display::do_update_(); // call display lambda writer
-    queuePush( iPixelCommads::sendImage( state_.framebuffer_ ) );
+    queuePush( iPixelCommads::sendImage( state_.framebuffer_, get_slot() ) );
   }
 }
 
@@ -584,7 +610,7 @@ void IPixelBLE::fill_color_effect() {
       draw_pixel_at(x, y, Color(state_.mR, state_.mG, state_.mB));
     }
   }
-  queuePush( iPixelCommads::sendImage( state_.framebuffer_ ) );
+  queuePush( iPixelCommads::sendImage( state_.framebuffer_, get_slot() ) );
 }
 
 void IPixelBLE::fill_rainbow_effect() {
@@ -603,7 +629,7 @@ void IPixelBLE::fill_rainbow_effect() {
       draw_pixel_at(x, y, Color(r * 255, g * 255, b * 255));
     }
   }
-  queuePush( iPixelCommads::sendImage( state_.framebuffer_ ) );
+  queuePush( iPixelCommads::sendImage( state_.framebuffer_, get_slot() ) );
 }
 
 float frand() { return (float) rand() / RAND_MAX; }
@@ -616,8 +642,8 @@ void IPixelBLE::random_pixel_effect() {
     uint8_t r = frand() * 255;
     uint8_t g = frand() * 255;
     uint8_t b = frand() * 255;
-    //ESP_LOGD(TAG, "RAND_MAX: %d x: %d y: %d r: %d g: %d b: %d", RAND_MAX, x, y, r, g, b);
     queuePush( iPixelCommads::setPixel(x, y, r, g, b) );
+    is_ready_ = true; // setPixel does not send a notification
   }
 }
 
@@ -630,6 +656,105 @@ void IPixelBLE::alarm_effect() {
     index++;
     if (index > 4) index = 0;
   }
+}
+
+void IPixelBLE::set_color(std::string slot_csv) {
+  std::stringstream ss(slot_csv);
+  std::vector<uint8_t> color;
+  unsigned int number;
+
+  while(ss >> number) {
+    if (number >= 0 && number <= 255)
+    color.push_back(number);
+  }
+
+  if (color.size() == 3) {
+    state_.mR = color[0];
+    state_.mG = color[1];
+    state_.mB = color[2];
+    if (!is_starting()) text_effect();
+  }
+}
+
+void IPixelBLE::set_background_color(std::string slot_csv) {
+  std::stringstream ss(slot_csv);
+  std::vector<uint8_t> color;
+  unsigned int number;
+
+  while(ss >> number) {
+    if (number >= 0 && number <= 255)
+    color.push_back(number);
+  }
+
+  if (color.size() == 3) {
+    state_.mRBack = color[0];
+    state_.mGBack = color[1];
+    state_.mBBack = color[2];
+    if (!is_starting()) text_effect();
+  }
+}
+
+void IPixelBLE::set_program_list(std::string slot_csv) {
+  std::stringstream ss(slot_csv);
+  unsigned int number;
+  state_.mProgramSlots.clear();
+
+  while(ss >> number) {
+    if (number > 0 && number <= 100)
+    state_.mProgramSlots.push_back(number);
+  }
+
+  // update program slot sensor at least one slot is required to buid a valid program
+  if (state_.mProgramSlots.size() >= 1) {
+    get_slot(false);
+  }
+}
+
+void IPixelBLE::del_program_list(std::string slot_csv) {
+  std::stringstream ss(slot_csv);
+  unsigned int number;
+  std::vector<uint8_t> slot_list;
+
+  while(ss >> number) {
+    if (number > 0 && number <= 100)
+    slot_list.push_back(number);
+  }
+
+  if (slot_list.size() > 0) {
+    queuePush( iPixelCommads::deleteSlotList(slot_list) );
+  } else {
+    queuePush( iPixelCommads::clear() );
+  }
+}
+
+uint8_t IPixelBLE::get_slot(bool countdown) {
+  uint8_t slot = 0;       // this is the live slot
+  uint8_t next_slot = 0;  // next slot when counddown is active
+
+  if ((state_.mProgramSlots.size() > 0) && state_.mPlayState) {
+    slot = state_.mProgramSlots[0];
+    next_slot = slot;
+    if (countdown) {
+      next_slot = (state_.mProgramSlots.size() > 1) ? state_.mProgramSlots[1] : 0;
+      state_.mProgramSlots.erase(state_.mProgramSlots.begin());
+    }
+  }
+
+  // update next program slot sensor
+  if (program_slot_ != nullptr && program_slot_->state != next_slot) {
+    program_slot_->publish_state(next_slot);
+  }
+
+  return slot;
+}
+bool IPixelBLE::is_starting() {
+  bool starting = play_switch_ != nullptr && play_switch_->state;
+
+  if (starting){
+    starting = state_.mProgramSlots.size() > 0;
+  }
+
+  return starting;
 }
 
 }  // namespace ipixel_ble

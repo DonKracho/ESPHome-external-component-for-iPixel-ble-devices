@@ -65,14 +65,13 @@ namespace Helpers {
     }
 
     std::vector<uint8_t> getFrameSize(const std::vector<uint8_t>& data, size_t size) {
-        return getFrameSize(data.size(), size);
+        return getLittleEndian(data.size(), size);
     }
 
-    std::vector<uint8_t> getFrameSize(size_t byte_count, size_t size) {
-        size_t length = byte_count;  
+    std::vector<uint8_t> getLittleEndian(size_t value, size_t size) {
         std::vector<uint8_t> result(size, 0);
         for (size_t i = 0; i < size; ++i)
-            result[size - 1 - i] = static_cast<uint8_t>((length >> (i * 8)) & 0xFF);
+            result[size - 1 - i] = static_cast<uint8_t>((value >> (i * 8)) & 0xFF);
         return switchEndian(result);
     }
 

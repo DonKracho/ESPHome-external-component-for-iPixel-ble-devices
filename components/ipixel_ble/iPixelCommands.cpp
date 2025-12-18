@@ -31,7 +31,7 @@ namespace iPixelCommads {
         frame[4] = (uint8_t)hour;
         frame[5] = (uint8_t)minute;
         frame[6] = (uint8_t)second;
-        frame[7] = 0x04; // language German
+        frame[7] = 0x00; // language English
 
         return frame;
     }
@@ -95,38 +95,13 @@ namespace iPixelCommads {
         return frame;
     }
 
-    std::vector<uint8_t> ledOff() {
+    std::vector<uint8_t> setPower(bool state) {
         std::vector<uint8_t> frame(5);
         frame[0] = 0x05;
         frame[1] = 0x00;
         frame[2] = 0x07;
         frame[3] = 0x01;
-        frame[4] = 0x00;
-
-        return frame;
-    }
-
-    std::vector<uint8_t> ledOn() {
-        std::vector<uint8_t> frame(5);
-        frame[0] = 0x05;
-        frame[1] = 0x00;
-        frame[2] = 0x07;
-        frame[3] = 0x01;
-        frame[4] = 0x01;
-
-        return frame;
-    }
-
-    std::vector<uint8_t> deleteScreen(int screen) {
-        checkRange("Screen", screen, 0, 10);
-
-        std::vector<uint8_t> frame(6);
-        frame[0] = 0x07;
-        frame[1] = 0x00;
-        frame[2] = 0x02;
-        frame[3] = 0x01;
-        frame[4] = 0x00;
-        frame[5] = (uint8_t)screen;
+        frame[4] = state ? 0x01 : 0x00;
 
         return frame;
     }
@@ -207,25 +182,22 @@ namespace iPixelCommads {
         return frame;
     }
 
-    std::vector<uint8_t> sendText(const std::string& text, int animation, int save_slot, int speed, uint8_t r, uint8_t g, uint8_t b, int rainbow_mode, int font_flag) {
-        checkRange("Text Length", text.length(), 1, 128);
+    std::vector<uint8_t> sendText(const std::string &text, uint8_t animation, uint8_t speed, esphome::Color txt_color,  uint8_t rainbow_mode, uint8_t font_flag, uint8_t save_slot, esphome::Color bg_color) {
+        checkRange("Text Length", text.length(), 1, 500);
         checkRange("Animation", animation, 0, 6);
-        checkRange("Save Slot", save_slot, 1, 10);
+        checkRange("Save Slot", save_slot, 0, 255);
         checkRange("Speed", speed, 0, 100);
-        checkRange("colorR", r, 0, 255);
-        checkRange("colorG", g, 0, 255);
-        checkRange("colorB", b, 0, 255);
         checkRange("rainbow_mode", rainbow_mode, 0, 9);
         checkRange("font_flag", font_flag, 0, 4);
 
         size_t length = text.length();
         std::vector<uint8_t> chars_bytes;
-        Helpers::encodeText(text, font_flag, r, g, b, length, chars_bytes);
+        Helpers::encodeText(text, font_flag, txt_color.r, txt_color.g, txt_color.b, length, chars_bytes);
 
         ESP_LOGD(TAG, "sendText %s length=%d", text.c_str(), length);
 
         // --- Validation ---
-        if (length == 0 || length > 128 || font_flag > 4) return {};
+        if (length == 0 || length > 500 || font_flag > 4) return {};
 
         // --- Header calculation ---
         const uint16_t HEADER_LENGTH = 0x1D;
@@ -256,27 +228,21 @@ namespace iPixelCommads {
         header.push_back(0x00); //Byte 8
         header.push_back(0x00); //Byte 9
 
-        // --- Save slot ---
-        uint16_t save_slot_val = (uint16_t)(save_slot);
-        std::vector<uint8_t> save_slot_bytes = {
-            (uint8_t)(save_slot_val & 0xFF),
-            (uint8_t)((save_slot_val >> 8) & 0xFF)
-        };
-        save_slot_bytes = save_slot_bytes; //Byte 14-15
+        // --- build Payload ---
+        std::vector<uint8_t> char_count = Helpers::getLittleEndian(length, 2);
 
-        // --- Payload ---
         std::vector<uint8_t> payload;
-        payload.push_back((uint8_t)(length));                                       // number of characters
-        payload.push_back(0x00); payload.push_back(0x01); payload.push_back(0x01);  // fixed prefix
+        payload.insert(payload.end(), char_count.begin(), char_count.end());    // number of characters litthe endian
+        payload.push_back(0x01); payload.push_back(0x01);                       // fixed prefix
 
         payload.push_back((uint8_t)(animation));
         payload.push_back((uint8_t)(speed));
     
         // the following char and backgrond colors do apply when rainbow mode is set to one only
         payload.push_back((uint8_t)(rainbow_mode));
-        payload.push_back(r); payload.push_back(g); payload.push_back(b);           // char color
-        payload.push_back((uint8_t)(rainbow_mode));
-        payload.push_back(0xA0); payload.push_back(0xA0); payload.push_back(0x00);  // background color (dark yellow for testing)
+        payload.push_back(txt_color.r); payload.push_back(txt_color.r); payload.push_back(txt_color.r); // text color
+        payload.push_back((uint8_t)(0x01));
+        payload.push_back(bg_color.r); payload.push_back(bg_color.g); payload.push_back(bg_color.b);    // background color
 
         // Append encoded characters
         payload.insert(payload.end(), chars_bytes.begin(), chars_bytes.end());
@@ -288,15 +254,18 @@ namespace iPixelCommads {
         std::vector<uint8_t> result;
         result.insert(result.end(), header.begin(), header.end());
         result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());
-        result.insert(result.end(), save_slot_bytes.begin(), save_slot_bytes.end());
+        result.push_back(0x00);         // byte 14
+        result.push_back(save_slot);    // byte 15
         result.insert(result.end(), payload.begin(), payload.end());
 
         return result;
     }
 
-    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, bool is_gif, uint8_t save_slot) {
-        std::vector<uint8_t> size_bytes = Helpers::getFrameSize(data, 4);       // 4 bytes little-endian
-        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(data);    // 4 bytes little-endian
+    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, uint8_t save_slot, bool is_gif) {
+        checkRange("Save Slot", save_slot, 0, 255);
+    
+        std::vector<uint8_t> size_bytes = Helpers::getLittleEndian(data.size(), 4); // 4 bytes little-endian
+        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(data);        // 4 bytes little-endian
 
         std::vector<uint8_t> result;
 
@@ -332,7 +301,7 @@ namespace iPixelCommads {
             accu_size += curr_size;
 
             // replace placeholder for command data size
-            std::vector<uint8_t> cmdChunkSize = Helpers::getFrameSize(curr_size, 2);
+            std::vector<uint8_t> cmdChunkSize = Helpers::getLittleEndian(curr_size, 2);
             result[0] = cmdChunkSize[0];
             result[1] = cmdChunkSize[1];
 
@@ -340,6 +309,56 @@ namespace iPixelCommads {
             pos = chunk_end;
         }
 
+        return result;
+    }
+
+    std::vector<uint8_t> startProgramList(const std::vector<uint8_t> &slot_list) {
+        std::vector<uint8_t> result;
+
+        int16_t list_size = slot_list.size();
+
+        if (list_size <= 100) {
+            std::vector<uint8_t> cmd_length = Helpers::getLittleEndian(list_size + 6, 2);
+            std::vector<uint8_t> slot_count = Helpers::getLittleEndian(list_size, 2);
+
+            result.insert(result.end(), cmd_length.begin(), cmd_length.end());
+            result.insert(result.end(), {0x08, 0x80});
+            result.insert(result.end(), slot_count.begin(), slot_count.end());
+            result.insert(result.end(), slot_list.begin(), slot_list.end());
+        }
+
+        return result;
+    }
+
+    std::vector<uint8_t> deleteSlotList(const std::vector<uint8_t> &slot_list) {
+        std::vector<uint8_t> result;
+
+        int16_t list_size = slot_list.size();
+
+        if (list_size <= 100) {
+            std::vector<uint8_t> cmd_length = Helpers::getLittleEndian(list_size + 6, 2);
+            std::vector<uint8_t> slot_count = Helpers::getLittleEndian(list_size, 2);
+
+            result.insert(result.end(), cmd_length.begin(), cmd_length.end());
+            result.insert(result.end(), {0x02, 0x01});
+            result.insert(result.end(), slot_count.begin(), slot_count.end());
+            result.insert(result.end(), slot_list.begin(), slot_list.end());
+        }
+
+        return result;
+    }
+
+    std::vector<uint8_t> deleteSlot(uint8_t slot) {
+        checkRange("Slot", slot, 1, 100);
+
+        std::vector<uint8_t> frame {0x07, 0x00, 0x02, 0x01, 0x01, 0x00};
+        frame.push_back(slot);
+
+        return frame;
+    }
+
+    std::vector<uint8_t> notifyFirmwareVersions() {
+        std::vector<uint8_t> result {0x04, 0x00, 0x05, 0x80};
         return result;
     }
 

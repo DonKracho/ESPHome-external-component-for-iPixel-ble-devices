@@ -2,7 +2,7 @@
 
 #include <vector>
 #include <string>
-#include <ErriezCRC32.h>
+#include "ErriezCRC32.h"
 
 namespace Helpers {
 
@@ -21,9 +21,8 @@ namespace Helpers {
     //Compute CRC32 as 4-byte vector, reversed
     std::vector<uint8_t> calculateCRC32Bytes(const std::vector<uint8_t>& data);
 
-    //Returns the frame size in a vector of size bytes
-    std::vector<uint8_t> getFrameSize(const std::vector<uint8_t>& data, size_t size);
-    std::vector<uint8_t> getFrameSize(size_t byte_count, size_t size);
+    //Returns the value in a vector of size bytes
+    std::vector<uint8_t> getLittleEndian(size_t value, size_t size);
 
     //Turns a hex string into a vector
     std::vector<uint8_t> hexStringToVector(const std::string &hexString);

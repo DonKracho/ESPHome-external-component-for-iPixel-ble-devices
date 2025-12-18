@@ -18,6 +18,8 @@ CONF_FONT_WIDTH = "font_width"
 CONF_FONT_HEIGHT = "font_height"
 CONF_ORIENTATION = "orientation"
 CONF_FUN_MODE = "fun_mode"
+CONF_PROGRAM_SLOT = "program_slot"
+CONF_UPLOAD_QUEUE = "upload_queue"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -70,6 +72,18 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_EMPTY,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
+        cv.Required(CONF_PROGRAM_SLOT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
+        cv.Required(CONF_UPLOAD_QUEUE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_EMPTY,
+            accuracy_decimals=0,
+            device_class=DEVICE_CLASS_EMPTY,
+            state_class=STATE_CLASS_MEASUREMENT,
+        ),
     }
 )
 
@@ -86,6 +100,8 @@ async def to_code(config):
         CONF_FONT_HEIGHT,
         CONF_ORIENTATION,
         CONF_FUN_MODE,
+        CONF_PROGRAM_SLOT,
+        CONF_UPLOAD_QUEUE,
     ]:
         if sensor_config := config.get(sensor_name):
             sens = await sensor.new_sensor(sensor_config)

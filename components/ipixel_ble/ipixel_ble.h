@@ -75,7 +75,11 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void show_image(int8_t page = -1) { load_image_effect(page); }
   void set_text(std::string &text) { state_.txt_ = text; text_effect(); }
   void set_effect(effects efect) { state_.effect_ = efect; }
-  
+  void set_color(std::string slot_csv);
+  void set_background_color(std::string slot_csv);
+  void set_program_list(std::string slot_csv);
+  void del_program_list(std::string slot_csv);
+
   // display
   //void update() override;
   int get_width_internal() override { return state_.mDisplayWidth; }
@@ -111,10 +115,8 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void set_font_height(sensor::Sensor *sensor) { font_height_ = sensor; }
   void set_orientation(sensor::Sensor *sensor) { orientation_ = sensor; }
   void set_fun_mode(sensor::Sensor *sensor) { fun_mode_ = sensor; }
-
-  // Button setters
-  void set_delete_slot_button(button::Button *button) { delete_slot_button_ = button; }
-  void on_delete_slot_button_press();
+  void set_program_slot(sensor::Sensor *sensor) { program_slot_ = sensor; }
+  void set_upload_queue(sensor::Sensor *sensor) { upload_queue_ = sensor; }
 
   void set_update_time_button(button::Button *button) { update_time_button_ = button; }
   void on_update_time_button_press();
@@ -123,8 +125,8 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void set_clock_style_number(number::Number *number) { clock_style_number_ = number; }
   void on_clock_style_number(float value);
 
-  void set_slot_number_number(number::Number *number) { slot_number_number_ = number; }
-  void on_slot_number_number(float value);
+  void set_lambda_slot_number(number::Number *number) { lambda_slot_number_ = number; }
+  void on_lambda_slot_number(float value);
 
   void set_annimation_mode_number(number::Number *number) { annimation_mode_number_ = number; }
   void on_annimation_mode_number(float value);
@@ -162,6 +164,8 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void draw_absolute_pixel_internal(int x, int y, Color color) override;  // display
   void update_state_(const DeviceState &new_state);
   void do_update_();
+  uint8_t get_slot(bool countdown = true);
+  bool is_starting();
 
   uint16_t handle_{0};
   esp32_ble_tracker::ESPBTUUID service_uuid_ = esp32_ble_tracker::ESPBTUUID::from_raw("000000fa-0000-1000-8000-00805f9b34fb");
@@ -171,8 +175,8 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   DeviceInfo  device_info_;
   DeviceState state_;
   std::vector<std::vector<uint8_t>> queue;
+  bool is_ready_{false};
 
-  bool response_received_{false};
   uint32_t last_request_{0};
   uint32_t last_update_{0};
   uint32_t last_animation_{0};
@@ -188,15 +192,16 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   sensor::Sensor *font_height_{};
   sensor::Sensor *orientation_{};
   sensor::Sensor *fun_mode_{};
+  sensor::Sensor *program_slot_{};
+  sensor::Sensor *upload_queue_{};
 
-  button::Button *delete_slot_button_{};
   button::Button *update_time_button_{};
 
-  number::Number *clock_style_number_{};
-  number::Number *slot_number_number_{};
   number::Number *annimation_mode_number_{};
   number::Number *annimation_speed_number_{};
+  number::Number *clock_style_number_{};
   number::Number *font_flag_number_{};
+  number::Number *lambda_slot_number_{};
   number::Number *text_mode_number_{};
 
   switch_::Switch *play_switch_{};
