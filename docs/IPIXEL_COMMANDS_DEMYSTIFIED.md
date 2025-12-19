@@ -9,15 +9,14 @@ It has attributes for animation and global colors. Tor
 
 ```
 struct text_command {
-  uint16_t cmd_len;                      // byte 1-2 little endian
+  uint16_t cmd_len;                      // byte 1-2 entire packet length little endian
   uint8_t  cmd_id[2] {0x00, 0x01};       // byte 3-4 command identifier
-  uint8_t  has_next_chunk {0x00};        // byte 5 set to 2 if there is a data frame following (@ArtiiP)
-  uint16_t cmd_len - 0x0f;               // byte 6-7 maybe a deprecated text command not knowing all attributes
-  uint8_t  fixed2[] {0x00, 0x00};        // byte 8-9
-  uint32_t crc;                          // byte 10-13 checksum of payload little endian
+  uint8_t  has_next_chunk {0x00};        // byte 5 set to 0x02, if there is a data frame following (@ArtiiP)
+  uint32_t payload_size;                 // byte 6-9 maybe a deprecated text command not knowing all attributes
+  uint32_t payload_crc;                  // byte 10-13 checksum of payload little endian
   uint8_t  unknown {0x00};               // byte 14
   uint8_t  save_slot;                    // byte 15 used by program feature
-                                         // here the payload starts
+                                         // here the payload begins
   uint16_t char_count;                   // byte 16-17 little endian
   uint8_t  h_align {0x01};               // byte 18 set to 1 for horizontal alignment (@ArtiiP)
   uint8_t  v_align {0x01};               // byte 19 set to 1 for vertical alignment (@ArtiiP)
@@ -66,7 +65,7 @@ Slot nunbers 0 and numbers above 100 are reserved. For these numbers the uploade
 
 ```
 struct program_list_command {  
-  uint16_t cmd_len;                      // byte 1-2 little endian  
+  uint16_t cmd_len;                      // byte 1-2 entire packet length little endian  
   uint8_t  cmd_id[2] {0x08, 0x80};       // byte 3-4 command identifier  
   uint16_t slot_count;                   // byte 5-6 number of slots little endian  
   uint8_t  slot_list[slot_count];        // byte 7-end List of slot numbers  
@@ -82,7 +81,7 @@ Be carefull deleting slots while the program list is not finished. This may cras
  
 ```
 struct delete_list_command {  
-  uint16_t cmd_len;                      // byte 1-2 little endian  
+  uint16_t cmd_len;                      // byte 1-2 entire packet length little endian  
   uint8_t  cmd_id[2] {0x02, 0x01};       // byte 3-4 command identifier  
   uint16_t slot_count;                   // byte 5-6 number of slots little endian  
   uint8_t  slot_list[slot_count];        // byte 7-end List of slot numbers  
@@ -94,7 +93,7 @@ after the iPixel App connected to the device it sends a version getter two times
 
 ```
 struct notify_firmWare_versions {  
-  uint16_t cmd_len {0x0400};             // byte 1-2 little endian  
+  uint16_t cmd_len {0x0400};             // byte 1-2 entire packet lenhth little endian  
   uint8_t  cmd_id[2] {0x05, 0x80};       // byte 3-4 command identifier  
 };
 ```
@@ -103,11 +102,35 @@ It returns a notification
 
 ```
 struct  versions {  
-  uint16_t data_len {0x0c00};            // byte 1-2 little endian  
+  uint16_t notify_len {0x0c00};          // byte 1-2 entire packet length little endian  
   uint8_t  cmd_id[2] {0x05, 0x80};       // byte 3-4 command identifier  
   uint8_t  mcu_major                     // byte 5-6
   uint8_t  mcu_minor;                    // byte 7-8
   uint8_t  ble_major;                    // byte 9-10
   uint8_t  ble_minor;                    // byte 11-12
+};
+```
+
+### send image  
+The iPixel App can send raw franes png or gif files. If the file exceed 13 KB in size it
+has to be sent in chunks,
+
+```
+struct  send_image {
+  uint16_t cmd_len;                      // byte 1-2 entire packet length little endian
+  union cmd_id {
+    uint8_t  gif[2]{ 0x03, 0x00 };       // byte 3-4
+    uint8_t  raw[2]{ 0x02, 0x00 };       // byte 3-4
+  }
+  uint8_t  has_next_chunk {0x00}         // byte 5 set to 0x02, if there is a data frame following
+  uint32_t payload_size;                 // byte 6-9
+  uint32_t payload_crc;                  // byte 10-13 checksum of payload little endian;
+  union {                                // byte 14
+    uint8_t  gif[1] { 0x02 };
+    uint8_t  raw[1] { 0x00 };
+  }
+  uint8_t  save_slot;                    // byte 15 used by program feature for raw 0x65 (101, the first frame after the pragamable frames)
+                                         // here the payload begins
+  uint8_t  data[]                        // up to 12 KB of data
 };
 ```
