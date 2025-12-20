@@ -28,7 +28,6 @@ list is loading do not send commands which are not taking a slot number. Be care
 a slot may crash the display and cause boot loops!
 
 ### Delete Program List (aka Delete Slot)  
-
 To remove slots from the program list the delete_list_command ist used. This takes a list of numbers too.
 Be carefull deleting slots while the program list upload is not finished. This may crash the display firmware.
  
@@ -42,11 +41,12 @@ struct delete_list_command {
 ```
 
 ### Get Firmware Versions  
-after the iPixel App connected to the device it sends a version getter two times.
+After the iPixel App connected to the device it sends the current time (notifies some diaplay characteristics)
+and then this version getter two times.
 
 ```
 struct notify_firmWare_versions {  
-  uint16_t cmd_len {0x0400};            // byte 1-2 entire packet lenhth little endian  
+  uint16_t cmd_len {0x0400};            // byte 1-2 entire packet length little endian  
   uint8_t  cmd_id[2] {0x05, 0x80};      // byte 3-4 command identifier  
 };
 ```
@@ -81,9 +81,9 @@ struct  send_image {
     uint8_t  raw[1] { 0x00 };
     uint8_t  gif[1] { 0x02 };
   }
-  uint8_t  save_slot;                   // byte 15 used by program feature for raw 0x65 (101, the first frame after the pragamable frames)
+  uint8_t  save_slot;                   // byte 15 used by program feature for raw 0x65 (first frame after the program frames)
                                         // here the payload begins
-  uint8_t  data[]                       // up to 12 KB of data
+  uint8_t  data[]                       // up to 12KB of data
 };
 ```
 
@@ -106,10 +106,10 @@ struct text_command {
   uint8_t  v_align {0x01};              // byte 19 set to 1 for vertical alignment (@ArtiiP)
   uint8_t  animation_mode               // byte 20
   uint8_t  animation_speed;             // byte 21
-  uint8_t  text_color_mode;             // byte 22 0: char bitmap color, 1: fixed color, div. floating rainbow colors
-  uint8_t  text_color[3];	              // byte 23-25 character color {r, g, b} applied when text_color_mode is 1
+  uint8_t  text_color_mode;             // byte 22 0: char bitmap color, 1: fixed color, div. rainbow effects
+  uint8_t  text_color[3];             // byte 23-25 character color {r, g, b} applied when text_color_mode is 1
   uint8_t  back_color_mode;             // byte 26 0: off (black), 1: the back_color below gets applied
-  uint8_t  back_color[3];	              // byte 27-29 background color {r, g, b} applied when back_color_mode is 1
+  uint8_t  back_color[3];             // byte 27-29 background color {r, g, b} applied when back_color_mode is 1
   union {
     struct 8_16_bitmap {                // fixed 8x16 font bitmap
       uint8_t flag {0x00};
