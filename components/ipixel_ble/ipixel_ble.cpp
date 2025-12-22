@@ -5,6 +5,9 @@
 #include <algorithm>
 #include <ctime>
 #include <sstream>
+
+#undef ESPHOME_LOG_LEVEL
+#define ESPHOME_LOG_LEVEL(ESPHOME_LOG_LEVEL_DEBUG)
 #include "esphome/core/log.h"
 
 #ifdef USE_ESP32
@@ -41,7 +44,7 @@ bool DeviceInfo::get_device_info(const std::vector<uint8_t> &res) {
   }
 
   if (res[2] == 0x05 && res[3] == 0x80) {
-    ESP_LOGD(TAG, "device info: MCU fw=%d.%02d BLE fw=%d.%02d", res[4], res[5], res[6], res[7]);
+    ESP_LOGW(TAG, "device info: MCU fw=%d.%02d BLE fw=%d.%02d", res[4], res[5], res[6], res[7]);
     return false; // nice to know, but interested in the display size information only
   }
   
@@ -53,7 +56,7 @@ bool DeviceInfo::get_device_info(const std::vector<uint8_t> &res) {
     if (res.size() >= 11) {
       password_flag_ = res[10];
     }
-    ESP_LOGD(TAG, "device info: name=%s size=%dx%d", name_.c_str(), width_, height_);
+    ESP_LOGW(TAG, "device info: name=%s size=%dx%d", name_.c_str(), width_, height_);
   }
 
   return width_ > 0 && height_ > 0;
@@ -81,17 +84,17 @@ void IPixelBLE::loop() {
 
       if (this->last_update_ + 5000 < tick) {
         this->last_update_ = tick;
-        //this->is_ready_ = true;
         //load_gif_effect();  // loads a entire RGB frame, do not stress the BLE connection to much
       }
     }
     queueTick();
+    downloadTick();
   }
   /*
   if (state_.mEffectRestore) {
     // restore last known effect
     if (state_.mEffectPtr != nullptr) {
-      ESP_LOGD(TAG, "restoring effect"); 
+      ESP_LOGW(TAG, "restoring effect"); 
       state_.mEffectPtr->apply();
     }
     state_.mEffectRestore = false;
@@ -104,7 +107,7 @@ void IPixelBLE::loop() {
 
 // display component
 void IPixelBLE::do_update_() {
-  ESP_LOGD(TAG, "display update called");
+  ESP_LOGW(TAG, "display update called");
   load_gif_effect();
 }
 
@@ -128,24 +131,24 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
 
   switch (event) {
     case ESP_GATTC_OPEN_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_OPEN_EVT status:%d conn_id=%d *remote_bda=0x%x mtu=%d", param->open.status, param->open.conn_id, param->open.remote_bda, param->open.mtu);
+      ESP_LOGW(TAG, "ESP_GATTC_OPEN_EVT status:%d conn_id=%d *remote_bda=0x%x mtu=%d", param->open.status, param->open.conn_id, param->open.remote_bda, param->open.mtu);
       break;
 
     case ESP_GATTC_DISCONNECT_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_DISCONNECT_EVT reason:%d conn_id=%d *remote_bda=0x%x", param->disconnect.reason, param->disconnect.conn_id, param->disconnect.remote_bda);
+      ESP_LOGW(TAG, "ESP_GATTC_DISCONNECT_EVT reason:%d conn_id=%d *remote_bda=0x%x", param->disconnect.reason, param->disconnect.conn_id, param->disconnect.remote_bda);
       this->node_state = esp32_ble_tracker::ClientState::DISCONNECTING;
       this->handle_ = 0;
 	    this->state_.mConnectionState = 0;
       break;
 
     case ESP_GATTC_SEARCH_CMPL_EVT:
-      ESP_LOGD(TAG, "GATTC_SEARCH_CMPL_EVT status:%d conn_id=%d source=%d", param->search_cmpl.status, param->search_cmpl.conn_id, param->search_cmpl.searched_service_source);
+      ESP_LOGW(TAG, "GATTC_SEARCH_CMPL_EVT status:%d conn_id=%d source=%d", param->search_cmpl.status, param->search_cmpl.conn_id, param->search_cmpl.searched_service_source);
       // register for notify
       this->ble_register_for_notify(this->parent()->get_gattc_if(), this->parent()->get_remote_bda());
       break;
 
     case ESP_GATTC_REG_FOR_NOTIFY_EVT:
-      ESP_LOGD(TAG, "GATTC_REG_FOR_NOTIFY_EVT status:%d handle=%d", param->reg_for_notify.status, param->reg_for_notify.handle);
+      ESP_LOGW(TAG, "GATTC_REG_FOR_NOTIFY_EVT status:%d handle=%d", param->reg_for_notify.status, param->reg_for_notify.handle);
       if (param->reg_for_notify.status == ESP_GATT_OK) {
         // now we are connected to the device and can collect some informations about the device
         this->node_state = esp32_ble_tracker::ClientState::ESTABLISHED;
@@ -155,7 +158,7 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
         if (characteristic != nullptr && (characteristic->properties & ESP_GATT_CHAR_PROP_BIT_WRITE) != 0) {
           this->handle_ = characteristic->handle;
         } else {
-          ESP_LOGD(TAG, "Write characteristic not found.");
+          ESP_LOGW(TAG, "Write characteristic not found.");
           break;
         }
 
@@ -165,7 +168,7 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
           // result comes via read event
           ble_read_chr(this->parent()->get_gattc_if(), this->parent()->get_remote_bda(), characteristic->handle);
         } else {
-          ESP_LOGD(TAG, "Access characteristic not found.");
+          ESP_LOGW(TAG, "Access characteristic not found.");
         }
         
         this->is_ready_ = true;
@@ -176,39 +179,37 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
       break;
 
     case ESP_GATTC_NOTIFY_EVT:
-      ESP_LOGD(TAG, "GATTC_NOTIFY_EVT conn_id=%d handle=%d len=%d is_notify=%d", param->notify.conn_id, param->notify.handle, param->notify.value_len, param->notify.is_notify);
+      ESP_LOGW(TAG, "GATTC_NOTIFY_EVT conn_id=%d handle=%d len=%d is_notify=%d", param->notify.conn_id, param->notify.handle, param->notify.value_len, param->notify.is_notify);
       if (param->notify.conn_id == this->parent()->get_conn_id()) {
         std::vector<uint8_t> data(param->notify.value, param->notify.value + param->notify.value_len);
         this->on_notification_received(data);
       }
-      upload_queue_->publish_state(0);
-      this->is_ready_ = true;
       break;
 
     case ESP_GATTC_CFG_MTU_EVT: // Maximun Transfer Unit
-      ESP_LOGD(TAG, "ESP_GATTC_CFG_MTU_EVT status: %d, conn_id=%d, mtu=%d ", param->cfg_mtu.status, param->cfg_mtu.conn_id, param->cfg_mtu.mtu);
+      ESP_LOGW(TAG, "ESP_GATTC_CFG_MTU_EVT status: %d, conn_id=%d, mtu=%d ", param->cfg_mtu.status, param->cfg_mtu.conn_id, param->cfg_mtu.mtu);
       break;
 
     case ESP_GATTC_CONNECT_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_CONNECT_EVT conn_id=%d link_role=%d conn_handle=%d", param->connect.conn_id, param->connect.link_role, param->connect.conn_handle);
-      ESP_LOGD(TAG, "conn_params: interval=%d latency=%d timeout=%d", param->connect.conn_params.interval, param->connect.conn_params.latency, param->connect.conn_params.timeout);
+      ESP_LOGW(TAG, "ESP_GATTC_CONNECT_EVT conn_id=%d link_role=%d conn_handle=%d", param->connect.conn_id, param->connect.link_role, param->connect.conn_handle);
+      ESP_LOGW(TAG, "conn_params: interval=%d latency=%d timeout=%d", param->connect.conn_params.interval, param->connect.conn_params.latency, param->connect.conn_params.timeout);
       break;
     
     case ESP_GATTC_SEARCH_RES_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_SEARCH_RES_EVT");
-      ESP_LOGD(TAG, "conn_id=%d", param-> search_res.conn_id);
-      ESP_LOGD(TAG, "start_hanle=%d", param->search_res.start_handle);
-      ESP_LOGD(TAG, "end_handle=%d", param->search_res.end_handle);
-      ESP_LOGD(TAG, "srvc_id: uuid={len=%d uuid=0x%x} inst_id=%d", param->search_res.srvc_id.uuid.len, param->search_res.srvc_id.uuid.uuid.uuid16, param->search_res.srvc_id.inst_id);
-      ESP_LOGD(TAG, "is_primary: %s", param->search_res.is_primary ? "true": "false");
+      ESP_LOGW(TAG, "ESP_GATTC_SEARCH_RES_EVT");
+      ESP_LOGW(TAG, "conn_id=%d", param-> search_res.conn_id);
+      ESP_LOGW(TAG, "start_hanle=%d", param->search_res.start_handle);
+      ESP_LOGW(TAG, "end_handle=%d", param->search_res.end_handle);
+      ESP_LOGW(TAG, "srvc_id: uuid={len=%d uuid=0x%x} inst_id=%d", param->search_res.srvc_id.uuid.len, param->search_res.srvc_id.uuid.uuid.uuid16, param->search_res.srvc_id.inst_id);
+      ESP_LOGW(TAG, "is_primary: %s", param->search_res.is_primary ? "true": "false");
       break;
 
     case ESP_GATTC_DIS_SRVC_CMPL_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_DIS_SRVC_CMPL_EVT status=%d conn_id=%d", param->dis_srvc_cmpl.status, param->dis_srvc_cmpl.conn_id);
+      ESP_LOGW(TAG, "ESP_GATTC_DIS_SRVC_CMPL_EVT status=%d conn_id=%d", param->dis_srvc_cmpl.status, param->dis_srvc_cmpl.conn_id);
       break;
 
     case ESP_GATTC_READ_CHAR_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_READ_CHAR_EVT status=%d conn_id=%d handle=%d len=%d", param->read.status, param->read.conn_id, param->read.handle, param->read.value_len);
+      ESP_LOGW(TAG, "ESP_GATTC_READ_CHAR_EVT status=%d conn_id=%d handle=%d len=%d", param->read.status, param->read.conn_id, param->read.handle, param->read.value_len);
       if (param->read.status == ESP_GATT_OK) {
         // this is the only read command ever send. (access service / device name)
         std::string data(param->read.value, param->read.value + param->read.value_len);
@@ -217,15 +218,15 @@ void IPixelBLE::gattc_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t ga
       break;
     
     case ESP_GATTC_WRITE_CHAR_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_WRITE_CHAR_EVT status=%d conn_id=%d handle=%d offset=%d", param->write.status, param->write.conn_id, param->write.handle, param->write.offset);
+      ESP_LOGW(TAG, "ESP_GATTC_WRITE_CHAR_EVT status=%d conn_id=%d handle=%d offset=%d", param->write.status, param->write.conn_id, param->write.handle, param->write.offset);
       break;
 
     case ESP_GATTC_CLOSE_EVT:
-      ESP_LOGD(TAG, "ESP_GATTC_CLOSE_EVT status=%d conn_id=%d *remote_bda=0x%x reason=%d", param->close.status, param->close.conn_id, param->close.remote_bda, param->close.reason);
+      ESP_LOGW(TAG, "ESP_GATTC_CLOSE_EVT status=%d conn_id=%d *remote_bda=0x%x reason=%d", param->close.status, param->close.conn_id, param->close.remote_bda, param->close.reason);
       break;
 
     default:
-      ESP_LOGD(TAG, "Unhandled GATT event: %d", event);
+      ESP_LOGW(TAG, "Unhandled GATT event: %d", event);
       break;
   }
 }
@@ -234,7 +235,7 @@ bool IPixelBLE::ble_write_chr(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda, 
                                     uint16_t len) {
   esp_err_t ret = esp_ble_gattc_write_char(gattc_if, 0, handle, len, data, ESP_GATT_WRITE_TYPE_RSP, ESP_GATT_AUTH_REQ_NONE);
   if (ret != ESP_OK) {
-    ESP_LOGD(TAG, "Write characteristic failed, status: %d", ret);
+    ESP_LOGW(TAG, "Write characteristic failed, status: %d", ret);
     return false;
   }
   return true;
@@ -243,7 +244,7 @@ bool IPixelBLE::ble_write_chr(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda, 
 bool IPixelBLE::ble_read_chr(esp_gatt_if_t gattc_if, esp_bd_addr_t remote_bda, uint16_t handle) {
   esp_err_t ret = esp_ble_gattc_read_char(gattc_if, 0, handle, ESP_GATT_AUTH_REQ_NONE);
   if (ret != ESP_OK) {
-    ESP_LOGD(TAG, "Read characteristic failed, status: %d", ret);
+    ESP_LOGW(TAG, "Read characteristic failed, status: %d", ret);
     return false;
   }
   return true;
@@ -254,18 +255,18 @@ bool IPixelBLE::ble_register_for_notify(esp_gatt_if_t gattc_if, esp_bd_addr_t re
   if (chr != nullptr && (chr->properties & ESP_GATT_CHAR_PROP_BIT_NOTIFY) != 0) {
     esp_err_t ret = esp_ble_gattc_register_for_notify(gattc_if, remote_bda, chr->handle);
     if (ret != ESP_OK) {
-      ESP_LOGD(TAG, "Register for notify failed, status: %d", ret);
+      ESP_LOGW(TAG, "Register for notify failed, status: %d", ret);
       return false;
     }
   } else {
-    ESP_LOGD(TAG, "Notify characteristic not found.");
+    ESP_LOGW(TAG, "Notify characteristic not found.");
     return false;
   }
   return true;
 }
 
 void IPixelBLE::on_notification_received(const std::vector<uint8_t> &data) {
-  ESP_LOGD(TAG, "Notification received: %s", format_hex_pretty(data).c_str());
+  ESP_LOGW(TAG, "Notification received: %s", format_hex_pretty(data).c_str());
   // each command send to the device notifys with a 5 byte response starting with 0x05. Ignore these notifys!
   if (device_info_.get_device_info(data)) {
     // if no explicit display size set in esphome yaml file, use the display size detected
@@ -280,7 +281,13 @@ void IPixelBLE::on_notification_received(const std::vector<uint8_t> &data) {
       // allocate framebuffer
       state_.framebuffer_.resize(new_size);
     }
+  } else {
+    if (data[0] == 0x05 && data[4] == 3) {
+      ESP_LOGW(TAG, "sucess");
+    } 
   }
+  upload_queue_->publish_state(0);
+  this->is_ready_ = true;
 }
 
 void IPixelBLE::write_state(light::LightState *state) {
@@ -296,7 +303,7 @@ void IPixelBLE::write_state(light::LightState *state) {
   uint8_t b = (fblue * 255); // / fbrightness;
   uint8_t brightness = fbrightness * 100;
   bool color_changed = false;
-  ESP_LOGD(TAG, "brightness: %d r: %d g: %d b: %d", brightness, r, g, b);
+  ESP_LOGW(TAG, "brightness: %d r: %d g: %d b: %d", brightness, r, g, b);
 
   bool on = true;
   state->current_values_as_binary(&on);
@@ -431,11 +438,11 @@ void IPixelBLE::update_state_(const DeviceState &new_state) {
   }
 }
 
-void IPixelBLE::queueTick() {
-    if (queue.empty() || !is_ready_) return;
+bool IPixelBLE::queueTick() {
+    if (queue_.empty() || !is_ready_) return false;
     
     //Get command from queue
-    std::vector<uint8_t> &command = queue.front();
+    std::vector<uint8_t> &command = queue_.front();
 
     //Take bytes from command
     size_t chunkSize = std::min(500, (int)command.size());
@@ -448,24 +455,28 @@ void IPixelBLE::queueTick() {
 
     //Remove command if empty
     if (command.empty()) {
-      queue.erase(queue.begin());
+      queue_.erase(queue_.begin());
       is_ready_ = false; // wait for notification
+      delay_microseconds_safe(100000L);
     }
 
     // disconnect if write fails
     if (!write_ok) {
       ESP_LOGE(TAG, "BLE write failed or no ACK received, disconnecting...");
       client->disconnect();
+      is_ready_ = true;
+      upload_queue_->publish_state(0);
     } else {
       upload_queue_->publish_state(upload_queue_->state + 1);
     }
+    return write_ok;
 }
 
 void IPixelBLE::queuePush(std::vector<uint8_t> command) {
     uint32_t len = command.size();
-    ESP_LOGD(TAG, "cmd_len: %d", len);
+    ESP_LOGW(TAG, "cmd_len: %d", len);
     if (len > 0) {
-      queue.push_back(command);
+      queue_.push_back(command);
     }
 }
 
@@ -747,6 +758,7 @@ uint8_t IPixelBLE::get_slot(bool countdown) {
 
   return slot;
 }
+
 bool IPixelBLE::is_starting() {
   bool starting = play_switch_ != nullptr && play_switch_->state;
 
@@ -755,6 +767,43 @@ bool IPixelBLE::is_starting() {
   }
 
   return starting;
+}
+
+void IPixelBLE::downloadTick() {
+#ifdef HAS_PSRAM
+  if (buffer_.is_valid() && upload_queue_->state == 0) {
+    uint8_t slot = get_slot();
+    uint8_t index;
+    const std::vector<uint8_t> data = buffer_.get_chunk(index);
+    if (data.size() > 0) {
+      upload_queue_->publish_state(1);
+      queuePush( iPixelCommads::sendImage(data, slot, index, true, buffer_.get_size(), buffer_.get_crc()) );
+    }
+  }
+#endif
+} 
+
+void IPixelBLE::load_image_url(std::string url) {
+#ifdef HAS_PSRAM
+  bool is_gif = url.rfind(".gif") != std::string::npos;
+  ESP_LOGW(TAG, "url=%s is_gif=%d", url.c_str(), is_gif);
+  if ( http_request_ != nullptr) {
+    std::string body;
+    std::list<http_request::Header> request_headers;
+    std::set<std::string> collect_headers;
+    
+    buffer_.downloader_ = http_request_->get(url, request_headers, collect_headers);
+    if (buffer_.downloader_ != nullptr) {
+      ESP_LOGW(TAG, "downloader status=%d length=%d %dms", buffer_.downloader_->status_code, buffer_.downloader_->content_length, buffer_.downloader_->duration_ms);
+      if (buffer_.downloader_->status_code == http_request::HTTP_STATUS_OK) {
+        buffer_.set_size(buffer_.downloader_->content_length);
+      }
+    }
+    upload_queue_->publish_state(0);
+  }
+#else
+  ESP_LOGW(TAG, "requires build_flag: -D HAS_PSRAM");
+#endif
 }
 
 }  // namespace ipixel_ble

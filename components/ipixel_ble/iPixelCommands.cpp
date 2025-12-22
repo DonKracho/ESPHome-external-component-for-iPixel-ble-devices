@@ -1,8 +1,8 @@
 #include "iPixelCommands.h"
 #include <algorithm>
 
-//#undef ESPHOME_LOG_LEVEL
-//#define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG
+#undef ESPHOME_LOG_LEVEL
+#define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG
 #include "esphome/core/log.h"
 
 namespace iPixelCommads {
@@ -199,41 +199,25 @@ namespace iPixelCommads {
         // --- Validation ---
         if (length == 0 || length > 500 || font_flag > 4) return {};
 
-        // --- Header calculation ---
-        const uint16_t HEADER_LENGTH = 0x1D;
-        // font_flag 0: 8x16 1: 16x16 2: 16x32 3: 8x16 -> 0x80 
-        const uint16_t CHAR_HEADER = (font_flag >= 3) ? 6 : 4;
-        const uint16_t CHAR_BYTES  = (font_flag < 1) ? 16 : (font_flag < 2) ? 32 : (font_flag < 3) ? 64 : (font_flag < 4) ? 16 : 32;
-        
-        uint16_t char_bytes = CHAR_HEADER + CHAR_BYTES;
+        uint32_t size = 0x0e + chars_bytes.size();                                      // payload size payload header + encoded_byte_count
 
-        uint16_t cmd_length = HEADER_LENGTH + length * char_bytes;
+        std::vector<uint8_t> size_command = Helpers::getLittleEndian(size + 15, 2);     // 2 bytes little-endian (header + payload)
+        std::vector<uint8_t> size_payload = Helpers::getLittleEndian(size, 4);          // 4 bytes little-endian
+    
+        std::vector<uint8_t> result;
 
-        std::vector<uint8_t> header;
-
-        auto appendHeader16 = [&header](uint16_t val) {
-            std::vector<uint8_t> temp = { 
-                (uint8_t)((val >> 8) & 0xFF),
-                (uint8_t)(val & 0xFF)
-            };
-            auto switched = Helpers::switchEndian(temp);
-            header.insert(header.end(), switched.begin(), switched.end());
-        };
-
-        appendHeader16(cmd_length); //Byte 1-2
-        header.push_back(0x00); //Byte 3
-        header.push_back(0x01); //Byte 4
-        header.push_back(0x00); //Byte 5
-        appendHeader16(cmd_length - 0x0f); //Byte 6-7
-        header.push_back(0x00); //Byte 8
-        header.push_back(0x00); //Byte 9
+        result.insert(result.end(), size_command.begin(), size_command.end());          // byte 1-2 command size little endian
+        result.push_back(0x00);                                                         // byte 3
+        result.push_back(0x01);                                                         // byte 4
+        result.push_back(0x00);                                                         // byte 5 (0x02 if it has a next frame)
+        result.insert(result.end(), size_payload.begin(), size_payload.end());          // byte 6-9 payload size little endian
 
         // --- build Payload ---
         std::vector<uint8_t> char_count = Helpers::getLittleEndian(length, 2);
 
         std::vector<uint8_t> payload;
-        payload.insert(payload.end(), char_count.begin(), char_count.end());    // number of characters litthe endian
-        payload.push_back(0x01); payload.push_back(0x01);                       // fixed prefix
+        payload.insert(payload.end(), char_count.begin(), char_count.end());            // number of characters little endian
+        payload.push_back(0x01); payload.push_back(0x01);                               // use horizontal and vertical align
 
         payload.push_back((uint8_t)(animation));
         payload.push_back((uint8_t)(speed));
@@ -248,66 +232,53 @@ namespace iPixelCommads {
         payload.insert(payload.end(), chars_bytes.begin(), chars_bytes.end());
 
         // --- CRC ---
-        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(payload); //Byte 10-13
+        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(payload);         // payload checksum 4 bytes little-endian
 
         // --- Assemble final message ---
-        std::vector<uint8_t> result;
-        result.insert(result.end(), header.begin(), header.end());
-        result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());
-        result.push_back(0x00);         // byte 14
-        result.push_back(save_slot);    // byte 15
+        result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());                // byte 10-13   
+        result.push_back(0x00);                                                         // byte 14
+        result.push_back(save_slot);                                                    // byte 15
         result.insert(result.end(), payload.begin(), payload.end());
 
         return result;
     }
 
-    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, uint8_t save_slot, bool is_gif) {
-        checkRange("Save Slot", save_slot, 0, 255);
-    
-        std::vector<uint8_t> size_bytes = Helpers::getLittleEndian(data.size(), 4); // 4 bytes little-endian
-        std::vector<uint8_t> crc_bytes = Helpers::calculateCRC32Bytes(data);        // 4 bytes little-endian
-
+    std::vector<uint8_t> sendImage(const std::vector<uint8_t> &data, uint8_t save_slot, uint8_t chunk_index, bool is_gif,
+                                   size_t total_size, std::vector<uint8_t> total_crc) {
+        size_t size = data.size();
+        size_t max_size = 12*1024L;
         std::vector<uint8_t> result;
+        checkRange("Save Slot", save_slot, 0, 255);
+        checkRange("Data Size", size , 1, max_size);
 
-        const size_t data_size = data.size();
-        const size_t chunk_size = 12 * 1024;
-        size_t chunk_index = 0;
-        size_t pos = 0;
-        size_t accu_size = 0;
-        size_t curr_size;
+        if (size == 0 || size > max_size) return result;
 
-        while (pos < data.size())
-        {
-            size_t chunk_end = std::min(pos + chunk_size, data.size());
-            ESP_LOGD(TAG, "data_size=%d chunk_end=%d", data_size, chunk_end);
+        if (total_size == 0L) total_size = size;
 
-            uint8_t option = chunk_index == 0 ? 0x00 : 0x02;
-
-            result.insert(result.end(), { 0xFF, 0xFF });                        // placeholder for command chunk size
-
-            if (is_gif) {
-                result.insert(result.end(), { 0x03, 0x00, option });            // animated prefix
-            } else {          
-                result.insert(result.end(), { 0x02, 0x00, option });            // raw prefix
-            }
-
-            result.insert(result.end(), size_bytes.begin(), size_bytes.end());  // size (4 bytes)
-            result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());    // checksum (4 bytes)
-            result.insert(result.end(), { 0x02, save_slot });                   // header end
-
-            result.insert(result.end(), data.begin() + pos, data.begin() + pos + chunk_end); // insert data chunk
-
-            curr_size = result.size() - accu_size;
-            accu_size += curr_size;
-
-            // replace placeholder for command data size
-            std::vector<uint8_t> cmdChunkSize = Helpers::getLittleEndian(curr_size, 2);
-            result[0] = cmdChunkSize[0];
-            result[1] = cmdChunkSize[1];
-
-            chunk_index += 1;
-            pos = chunk_end;
+        std::vector<uint8_t> size_cmd = Helpers::getLittleEndian(size + 15, 2);     // 4 bytes little-endian (header + payload)
+        std::vector<uint8_t> size_payl = Helpers::getLittleEndian(total_size, 4);   // 4 bytes little-endian
+        std::vector<uint8_t> crc_bytes = total_crc;                                 // 4 bytes little-endian
+        if (crc_bytes.size() == 0) {
+            crc_bytes = Helpers::calculateCRC32Bytes(data);
         }
+        uint8_t option = chunk_index == 0 ? 0x00 : 0x02;
+        uint8_t header_end;
+
+        result.insert(result.end(), size_cmd.begin(), size_cmd.end());          // entite command size
+
+        if (is_gif) {
+            result.insert(result.end(), { 0x03, 0x00, option });                // animated prefix
+            header_end = 0x02;
+        } else {          
+            result.insert(result.end(), { 0x02, 0x00, option });                // raw prefix
+            header_end = 0x00;
+        }
+
+        result.insert(result.end(), size_payl.begin(), size_payl.end());        // payload size (4 bytes)
+        result.insert(result.end(), crc_bytes.begin(), crc_bytes.end());        // payloaf checksum (4 bytes)
+        result.insert(result.end(), { header_end, save_slot });                 // header end
+        // payload
+        result.insert(result.end(), data.begin(), data.begin() + size);         // insert data chunk
 
         return result;
     }

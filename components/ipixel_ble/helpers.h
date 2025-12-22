@@ -20,6 +20,7 @@ namespace Helpers {
 
     //Compute CRC32 as 4-byte vector, reversed
     std::vector<uint8_t> calculateCRC32Bytes(const std::vector<uint8_t>& data);
+    std::vector<uint8_t> calculateCRC32Bytes(uint32_t crc);
 
     //Returns the value in a vector of size bytes
     std::vector<uint8_t> getLittleEndian(size_t value, size_t size);

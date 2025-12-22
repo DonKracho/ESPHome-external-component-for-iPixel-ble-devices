@@ -5,15 +5,15 @@ substitutions:
 esphome:
   name: ipixel-stripe
   friendly_name: LED Pixel Stripe
-#  libraries:
-#    - ErriezCRC32 = https://github.com/donkracho/ErriezCRC32
-#  on_boot:
-#    priority: 200  
-#    then:
-#      - wait_until:  
-#          condition:
-#            wifi.connected: 
-#          timeout: 5s
+  platformio_options: 
+    build_flags: -D HAS_PSRAM
+  on_boot:
+    priority: 200  
+    then:
+      - wait_until:  
+          condition:
+            wifi.connected: 
+          timeout: 5s
 
 esp32:
   variant: esp32s3
@@ -26,7 +26,7 @@ esp32:
 logger:
   baud_rate: 115200
   hardware_uart: UART0
-  level: debug
+  level: WARN
 
 # pngle requires a lot of ram this is the setting for an  ESP32-S3-N16R8
 psram:
@@ -61,8 +61,8 @@ web_server:
   port: 80
 
 external_components:
-  - source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices/components
-  #- source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
+  #- source: github://DonKracho/ESPHome-external-component-for-iPixel-ble-devices/components
+  - source: D:\ESPHome-external-component-for-iPixel-ble-devices\components
     refresh: 0s
     components: [ipixel_ble]
 
@@ -83,8 +83,8 @@ esp32_ble_tracker:
 ble_client:
   id: ble_client_id
   # put the BLE MAC address of your device here
-  #mac_address: 0F:D6:54:F9:D2:C7  # 32x32
-  mac_address: C3:AD:E7:8A:97:CA  # 96x16
+  mac_address: 0F:D6:54:F9:D2:C7  # 32x32
+  #mac_address: C3:AD:E7:8A:97:CA  # 96x16
 
 ipixel_ble:
     id: ipixel_ble_id
@@ -302,7 +302,7 @@ text:
             id(bmp_image_id).set_url(x);
             id(bmp_image_id).update();
           } else if (x.rfind(".gif") != std::string::npos) {
-            ESP_LOGD("text_id", "gif not implemented");
+            id(ipixel_ble_id).load_image_url(x);
           } else if (x.rfind(".col") != std::string::npos) {
             id(ipixel_ble_id).set_color(x.substr(0, x.size() - 4));
           } else if (x.rfind(".bgc") != std::string::npos) {
@@ -325,7 +325,7 @@ time:
     id: homeassistant_time
 
 http_request:
-  
+
 online_image: #https://icon-icons.com/
   - id: png_image_id
     url: "https://raw.githubusercontent.com/DonKracho/ESPHome-external-component-for-iPixel-ble-devices/refs/heads/main/sample-images/32x32/png/earth.png"

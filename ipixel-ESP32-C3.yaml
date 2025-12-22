@@ -18,7 +18,6 @@ esp32:
   framework:
     type: esp-idf
 
-
 # Enable logging ESP32 C3 reuses UART0
 logger:
   baud_rate: 115200

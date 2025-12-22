@@ -55,6 +55,10 @@ namespace Helpers {
     std::vector<uint8_t> calculateCRC32Bytes(const std::vector<uint8_t>& data) {
         uint32_t crc = crc32Update(data.data(), data.size(), CRC32_INITIAL);
         crc = crc32Final(crc);
+        return calculateCRC32Bytes(crc);
+    }
+
+    std::vector<uint8_t> calculateCRC32Bytes(uint32_t crc) {
         std::vector<uint8_t> crc_bytes = {
             (uint8_t)((crc >> 24) & 0xFF),
             (uint8_t)((crc >> 16) & 0xFF),

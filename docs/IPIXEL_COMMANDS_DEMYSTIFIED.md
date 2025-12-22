@@ -65,7 +65,8 @@ struct  versions {
 ```
 
 ### Send Image  
-The iPixel App can send raw frames, png or gif files. If the image size exceeds 12KB it has to be send in chunks.
+The iPixel App can send raw frames, png or gif files. If the image size exceeds 12KB it has to be send in chunks. Then the entire payload size and payload_crc
+has to be gvien with the first frame already! The acknowledge notify sends state 1 until the last chunk is send. Then the aknowlege state changes to 3 on success. Not being able to calulate the checksum during sending the chunks makes it difficult to implement multi package transfers on devices with limited resoures. 
 
 ```
 struct  send_image {
@@ -107,9 +108,9 @@ struct text_command {
   uint8_t  animation_mode               // byte 20
   uint8_t  animation_speed;             // byte 21
   uint8_t  text_color_mode;             // byte 22 0: char bitmap color, 1: fixed color, div. rainbow effects
-  uint8_t  text_color[3];             // byte 23-25 character color {r, g, b} applied when text_color_mode is 1
+  uint8_t  text_color[3];               // byte 23-25 character color {r, g, b} applied when text_color_mode is 1
   uint8_t  back_color_mode;             // byte 26 0: off (black), 1: the back_color below gets applied
-  uint8_t  back_color[3];             // byte 27-29 background color {r, g, b} applied when back_color_mode is 1
+  uint8_t  back_color[3];               // byte 27-29 background color {r, g, b} applied when back_color_mode is 1
   union {
     struct 8_16_bitmap {                // fixed 8x16 font bitmap
       uint8_t flag {0x00};

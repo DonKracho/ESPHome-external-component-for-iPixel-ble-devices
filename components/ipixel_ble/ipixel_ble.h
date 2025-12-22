@@ -18,8 +18,15 @@
 #include "esphome/components/button/button.h"
 #include "esphome/components/text/text.h"
 #include "esphome/core/component.h"
-
+#include "esp_heap_caps.h"
+#include "helpers.h"
 #include "state.h"
+
+#ifdef HAS_PSRAM
+#include "esphome/components/http_request/http_request_idf.h"
+#define MAX_CHUNK_SIZE (12*1024)
+#define MAX_READ_SIZE (32*1024)
+#endif
 
 namespace esphome {
 namespace ipixel_ble {
@@ -66,8 +73,117 @@ private:
   };
 };
 
+#ifdef HAS_PSRAM
+class ChunkBuffer {
+public:
+  ChunkBuffer() = default;
+
+  bool ps_alloc(size_t buffer_size) {
+    ptr_ = static_cast<uint8_t*> (heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM));
+    if (ptr_ == nullptr) {
+      size_ = 0;
+    }
+    return ptr_ != nullptr;
+  }
+
+  void ps_free() {
+    init_();
+  }
+
+  uint8_t* get_ptr() {
+    return ptr_;
+  }
+
+  const std::vector<uint8_t> get_buffer() {
+    return std::vector<uint8_t>(ptr_, ptr_ + size_);
+  }
+
+  bool read_chunk() {
+    if (read_ < size_ && downloader_ != nullptr) {
+      size_t chunk_size = size_ - read_;
+      if (chunk_size > MAX_READ_SIZE) chunk_size = MAX_READ_SIZE;
+      if (ptr_ == nullptr && !ps_alloc(size_)) {
+        return false;
+      }
+      downloader_->read(ptr_ + read_, chunk_size);
+      size_t read_size = downloader_->get_bytes_read();
+      if (read_size == 0) {
+        ESP_LOGE("ChunkBuffer", "reading failed (request = %d got %d)", chunk_size, read_size);
+        downloader_->end();
+        ps_free();
+        return false;
+      }
+      ESP_LOGD("ChunkBuffer", "read %d bytes", chunk_size);
+      crc_ = crc32Update(ptr_ + read_, chunk_size, crc_);
+      read_ += chunk_size;
+      if (read_ >= size_) { // read finished
+        crc_ = crc32Final(crc_);
+        crc_str_ = Helpers::calculateCRC32Bytes(crc_);
+        downloader_->end();
+        ESP_LOGD("ChunkBuffer", "crc = 0x%02x%02x%02x%02x", crc_str_[0], crc_str_[1], crc_str_[2], crc_str_[3]);
+      }
+    }
+    return read_ < size_;
+  }
+
+  const std::vector<uint8_t> get_chunk(uint8_t &index) {
+    index = 0;
+    if (pos_ < size_) {
+      // first we have to read the entire buffer because the correct crc_str is required for the first sendImage command :(
+      if (read_chunk()) return {};
+      size_t chunk_size = size_ - pos_;
+      if (chunk_size > MAX_CHUNK_SIZE) chunk_size = MAX_CHUNK_SIZE;
+      ESP_LOGE("ChunkBuffer", "upload %d bytes)", chunk_size);
+      index = chunk_index_;
+      chunk_index_++;
+      size_t pos = pos_;
+      pos_ += chunk_size;
+      return std::vector<uint8_t>(ptr_ + pos, ptr_ + pos + chunk_size);
+    } else {
+      ps_free();
+    }
+    return {};
+  }
+
+  void set_size(size_t size) { init_(); size_ = size; }
+  size_t get_size() { return size_; }
+
+  const std::vector<uint8_t> &get_crc() {
+     return crc_str_;
+  }
+
+  bool is_valid() {
+    return size_ != 0;
+  }
+
+  // will be nullptr after calling downloader_->end()
+  std::shared_ptr<http_request::HttpContainer> downloader_{nullptr};
+
+private:
+  void init_() {
+    if (ptr_ != nullptr) free(ptr_);
+    ptr_ = nullptr;
+    size_ = 0L;
+    pos_ = 0L;
+    read_ = 0L;
+    chunk_index_ = 0;
+    crc_ = CRC32_INITIAL;
+    crc_str_.clear();
+  }
+  size_t size_{0};
+  size_t read_{0};
+  size_t pos_{0};
+  uint8_t chunk_index_{0};
+  uint32_t crc_{CRC32_INITIAL};
+  std::vector<uint8_t> crc_str_{};
+  uint8_t* ptr_{nullptr};
+};
+
+class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, public ble_client::BLEClientNode, Parented<http_request::HttpRequestComponent> {
+#else
 class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, public ble_client::BLEClientNode {
- public:
+#endif
+public:
   IPixelBLE() {}
 
   void setup() override;
@@ -79,6 +195,12 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void set_background_color(std::string slot_csv);
   void set_program_list(std::string slot_csv);
   void del_program_list(std::string slot_csv);
+  void load_image_url(std::string url);
+
+  #ifdef HAS_PSRAM
+  // http request
+  void set_parent(http_request::HttpRequestComponent *parent) { http_request_ = parent; }
+  #endif
 
   // display
   //void update() override;
@@ -146,10 +268,7 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
 
   DeviceState get_state() { return this->state_; }
 
-  // Queue
-  void queueTick();
-  void queuePush(std::vector<uint8_t> command);
-
+protected:
   // Effects
   void text_effect();
   void time_date_effect();
@@ -160,12 +279,26 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
   void random_pixel_effect();
   void alarm_effect();
 
-  protected:
   void draw_absolute_pixel_internal(int x, int y, Color color) override;  // display
+ 
   void update_state_(const DeviceState &new_state);
   void do_update_();
+ 
   uint8_t get_slot(bool countdown = true);
+ 
   bool is_starting();
+
+  // Command Queue
+  bool queueTick();
+  void queuePush(std::vector<uint8_t> command);
+
+  // Downloader
+  void downloadTick();
+
+# ifdef HAS_PSRAM
+  http_request::HttpRequestComponent *http_request_{nullptr};
+  ChunkBuffer buffer_;
+# endif
 
   uint16_t handle_{0};
   esp32_ble_tracker::ESPBTUUID service_uuid_ = esp32_ble_tracker::ESPBTUUID::from_raw("000000fa-0000-1000-8000-00805f9b34fb");
@@ -174,9 +307,9 @@ class IPixelBLE :  public display::DisplayBuffer, public light::LightOutput, pub
 
   DeviceInfo  device_info_;
   DeviceState state_;
-  std::vector<std::vector<uint8_t>> queue;
+  std::vector<std::vector<uint8_t>> queue_;
   bool is_ready_{false};
-
+  
   uint32_t last_request_{0};
   uint32_t last_update_{0};
   uint32_t last_animation_{0};
