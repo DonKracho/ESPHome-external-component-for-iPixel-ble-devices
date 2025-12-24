@@ -5,7 +5,7 @@
 This repository contains an ESPHome external component that enables control of a Bluetooth‐enabled iPixel Display. It is non intrusive - no modification of the display is required. It just emulates the known iPixel Color App commands. At least ESPHome version 2025.11.0 is required.
 
 ## Update 2025/24/12
-cleaned up logging, updated [Ipixel command documentation}(docs/IPIXEL_COMMANDS_DEMYSTIFIED.md). Added rhythm light effects for testing and verifying the documentation. Have a nice XMAS. 
+cleaned up logging, updated [iPixel command documentation](./docs/IPIXEL_COMMANDS_DEMYSTIFIED.md). Added rhythm light effects for testing and verifying the documentation. Have a nice XMAS. 
 
 ## Update 2025/22/12
 **Breaking Change:** With implementing http requests the ESP32-C3 module runs out of resources. The C3 support has stopped now. If you still want to use the C3 refer to the ESP32-C3 tag.  

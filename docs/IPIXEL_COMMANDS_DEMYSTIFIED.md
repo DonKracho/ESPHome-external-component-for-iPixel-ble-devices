@@ -1,11 +1,9 @@
 ## iPixel BLE command stucture  
 
-All commads send to the display start with the command package length encoded as 2 byte little endian followed by a fixed two byte command identifier.
-If the command payload size exceeds 12KB it is split up into subsequent commads with up to 12 KB payload chunks. This may happen for large gif animations and text only.
-All commands, exept the commands for setting pixel and rhythm, return an acknowledge notification.
+All commads send to the display start with the command package length encoded as 2 byte little endian followed by a fixed two byte command identifier. If the command payload size exceeds 12KB it is split up into subsequent commads with up to 12 KB payload chunks. This may happen for large gif animations and text only. All commands, exept the commands for setting pixel and rhythm, return an acknowledge notification.
 
 ### Set Time (and getting display size)
-This is the first command send to the divice by the iPixel Color App after the BLE connections has been established.
+This is the first command send to the divice by the iPixel Color App after the BLE connections has been established.\
 **Return:** a 11 byte acknowledge notification with display model encoded in byte 5. 
  
 ```
@@ -18,12 +16,11 @@ struct set_time {
   uint8_t  language;                    // byte 8 language set in the app (0 = english)  
 };  
 ```
-Setting the time replies a notification of 11 bytes length (e.g. 0B.00.01.80.84.03.30.00.00.01.00)
+Setting the time replies a notification of 11 bytes length (e.g. 0B.00.01.80.**84**.03.30.00.00.01.00)\
 The fifth byte is a encoded display size (e.g. 84 stands for 16x96). The other bytes look toke the time and language set with the commad.
 
 ### Get Firmware Versions  
-After the iPixel App connected to the device it sends the current time (notifies some diaplay characteristics)
-and then this version getter two times.
+After the iPixel App connected to the device it sends the current time and then this firmware version getter two times.\
 **Return:** a 12 byte acknowledge notification with firmware versions in byte 5 to 12. 
 
 ```
@@ -47,7 +44,7 @@ struct  versions {
 ```
 
 ### Show Digital Clock  
-displays a digital clock animation.
+displays a digital clock animation.\
 **Return:** a 5 byte acknowledge notification with state 1 
  
 ```
@@ -65,14 +62,10 @@ struct show_digital_clock {
 ```
 
 ### Set Program List  
-The iPixel Color App has a "Program List" feature. There you can checkmark within a list of effects stored on the mobile already.
-On pressing the Play button all checked effects are send to the display and shown in a endless sequence loop.
+The iPixel Color App has a "Program List" feature. There you can checkmark within a list of effects stored on the mobile already. On pressing the Play button all checked effects are send to the display and shown in a endless sequence loop.\
 
-When pressing the play button in the "Program List" feature tab the follwing command is send to the dispaly.
-As always the command starts with the command length byte count encoded as two byte little endian.
-A fixed two byte command identifier follows. Then the length of the slot list as two byte little endian.
-A list of slot numbers involved follows. The nunbers may have a value range from 1 to 100, at least for my devices.
-Slot nunbers 0 and numbers above 100 are reserved. For these numbers the uploaded effects are applied immediately and the progam list halts.
+When pressing the play button in the "Program List" feature tab the follwing command is send to the dispaly. As always the command starts with the command length byte count encoded as two byte little endian.A fixed two byte command identifier follows. Then the length of the slot list as two byte little endian. A list of slot numbers involved follows. The nunbers may have a value range from 1 to 100, at least for my devices.\
+Slot nunbers 0 and numbers above 100 are reserved. For these numbers the uploaded effects are applied immediately and the progam list halts.\
 **Return:** a 5 byte acknowledge notification with state 1 
 
 ```
@@ -84,14 +77,10 @@ struct set_program_list {
 };  
 ```
 
-After that for each slot number in the list the according effect (load image or sending text) has to be send.
-As long as not all effects have been set the display cycle trough all slots having valid content. While the program
-list is loading do not send commands which are not taking a slot number. Be carefull: Sending invalid content to
-a slot may crash the display and cause boot loops!
+After that for each slot number in the list the according effect (load image or sending text) has to be send. As long as not all effects have been set the display cycle trough all slots having valid content. While the program list is loading do not send commands which are not taking a slot number. Be carefull: Sending invalid content to a slot may crash the display and cause boot loops!
 
 ### Delete Program List (aka Delete Slot/Screen)  
-To remove slots from the program list the delete_list_command ist used. This takes a list of numbers too.
-Be carefull deleting slots while the program list upload is not finished. This may crash the display firmware.
+To remove slots from the program list the delete_list_command ist used. This takes a list of numbers too. Be carefull deleting slots while the program list upload is not finished. This may crash the display firmware.\
 **Return:** a 5 byte acknowledge notification with state 1 
  
 ```
@@ -104,9 +93,8 @@ struct delete_list {
 ```
 
 ### Show Image  
-The iPixel App can send raw frames, png or gif files. If the image size exceeds 12KB it has to be send in chunks. Then the entire payload size and payload_crc
-has to be gvien with the first frame already! Not being able to calulate the checksum during sending the chunks makes it difficult to implement multi package transfers on devices with limited resoures. 
-**Return:** a 5 byte acknowledge notification with state 1 until the last chunk is send. 3 on sucess. 0 if crc fails.
+The iPixel App can send raw frames, png or gif files. If the image size exceeds 12KB it has to be send in chunks. Then the entire payload size and payload_crc has to be gvien with the first frame already! Not being able to calulate the checksum during sending the chunks makes it difficult to implement multi package transfers on devices with limited resoures.\ 
+**Return:** a 5 byte acknowledge notification with state 1 until the last chunk is send. 3 on success. 0 if the crc check fails.
 
 ```
 struct  show_image {
@@ -129,9 +117,8 @@ struct  show_image {
 ```
 
 ### Show Text  
-The text command allows up to 500 characters in the iPixel Color App. It encodes the characters to font bitmaps or jpg images.
-The payload holds attributes for alignment, animation and colors. 
-**Return:** a 5 byte acknowledge notification with state 1 until the last chunk is send. 3 on sucess. 0 if crc fails. 
+The text command allows up to 500 characters in the iPixel Color App. It encodes the characters to font bitmaps or jpg images. The payload holds attributes for alignment, animation and colors.\
+**Return:** a 5 byte acknowledge notification with state 1 until the last chunk is send. 3 on success. 0 if the crc check fails. 
 
 ```
 struct show_text {
@@ -210,7 +197,7 @@ struct show_text {
 ```
 
 ### Show Rhythm Animation  
-shows a rhythm animation.
+shows a rhythm animation.\
 **NOTE:** This command does not send an acknowledge notification.
  
 ```
@@ -223,7 +210,7 @@ struct set_rhythm_animation {
 ```
 
 ### Show Rhythm Levels  
-shows some kind of bargraph animation.
+shows some kind of bargraph animation.\
 **NOTE:** This command does not send an acknowledge notification.
  
 ```
@@ -236,8 +223,7 @@ struct show_rhythm_level {
 ```
 
 ### Show Pixel  
-draws a single pixel on the display with given color. the origin is the upper left corner.
-Used for DIY drawing mode.
+draws a single pixel on the display with given color. the origin is the upper left corner. Used for DIY drawing mode.\
 **NOTE:** This command does not send an acknowledge notification.
 
 ```
@@ -254,7 +240,7 @@ struct set_pixel {
 ```
 
 ### Cear  
-clears all slots in the eeprom storage. The initial LED image gets displayed.
+clears all slots in the eeprom storage. The initial LED image gets displayed.\
 **Return:** a 5 byte acknowledge notify with state 1
 
 ```
@@ -265,7 +251,7 @@ struct clear {
 ```
 
 ### Set Power  
-turns the display on or off;
+turns the display on or off.\
 **Return:** a 5 byte acknowledge notify with state 1
  
 ```
@@ -277,7 +263,7 @@ struct set_power {
 ```
 
 ### Set Brightness  
-sets the display brightnes from 0 to 100%, but where 0% is not dark.
+sets the display brightnes from 0 to 100%, but where 0% is not dark.\
 **Return:** a 5 byte acknowledge notify with state 1
  
 ```
@@ -322,12 +308,13 @@ struct set_fun_mode {
 ```
 
 ### Command Template  
-reserved as template.
+reserved as template.\
 **Return:** a 5 byte acknowledge notify with state 
+
 ```
 struct command_template {  
   uint16_t cmd_len {0x05, 0x00};        // byte 1-2 entire packet length little endian  
-  uint8_t  cmd_id[2] {0x04, 0x01};      // byte 3-4 command identifier  
+  uint8_t  cmd_id[2] {0x00, 0x00};      // byte 3-4 command identifier  
   uint8_t  payload; 
 };
 ```
