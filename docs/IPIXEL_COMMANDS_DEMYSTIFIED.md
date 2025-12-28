@@ -17,7 +17,7 @@ struct set_time {
 };  
 ```
 Setting the time replies a notification of 11 bytes length (e.g. 0B.00.01.80.**84**.03.30.00.00.01.00)\
-The fifth byte is a encoded display size (e.g. 84 stands for 16x96). The other bytes look toke the time and language set with the commad.
+The fifth byte is a encoded display size (e.g. 84 stands for 16x96). The other bytes look like the time and language set with the commad.
 
 ### Get Firmware Versions  
 After the iPixel App connected to the device it sends the current time and then this firmware version getter two times.\
@@ -97,7 +97,7 @@ The iPixel App can send raw frames, png or gif files. If the image size exceeds 
 **Return:** a 5 byte acknowledge notification with state 1 until the last chunk is send. 3 on success. 0 if the crc check fails.
 
 ```
-struct  show_image {
+struct show_image {
   uint16_t cmd_len;                     // byte 1-2 entire packet length little endian
   union cmd_id {
     uint8_t  raw[2]{ 0x02, 0x00 };      // byte 3-4
@@ -274,7 +274,7 @@ struct set_brightness {
 };
 ```
 
-### Set Rotation  (not verified)  
+### Set Rotation  
 sets the display rotation.
  
 ```

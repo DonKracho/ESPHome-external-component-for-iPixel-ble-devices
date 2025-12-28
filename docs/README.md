@@ -17,19 +17,42 @@ When this external component is compiled and uploaded to the esp32 module you ho
   3: text scrolling from bottom to top   
   4: text scrolling from top to bottom  
   5: text flashing   
-  6: text with brightnes rising  
+  6: text with brightnes fading in and out  
 
-- **Animation Speed** (number 1-100, step: 5, default: 100)   
+- **Animation Speed** (number 1-100, step: 1, default: 100)   
   exlusive for the Message effect
 
 - **Clock Style** (number 1-9, default: 7)   
   exlusive for the Time and Time & Date effect
   Same styles as selectable in the iPixel Color App 
 
-- **Data** (text input)   
-  text input for the Message effect
+- **Text or Image URL** (text input)   
+  text input for the Message effect and loading images.
+  this input has some features by seaching for an extension (usefull for scripting):
+  if none of the following extensions is detected the text string is set.
+  - '.bmp' interpeteed as URL to a bmp image (gets rezized)
+  - '.png' interpeteed as URL to a png image (gets rezized)
+  - '.jpg' interpeteed as URL to a jpg image (gets rezized)
+  - '.gif' interpeteed as URL to a gif image (has to fit the dizplay dimensions!)
+  - '.png' interpeteed as URL to a png image
+  - '.img' the preceding number setz the Tmage Slot slider
+  - '.col' the preceding list of mumbers sets the drawing color for text (e.g. "red green blue.col", "255 255 255.col" is white) 
+  - '.bgc' same as .col but used a backgrount color of the text
+  - '.lst' the preceding list of space separated mumbers sets the slots for the program feature
+  - '.del' the preceding list of space separated mumbers sets the slots to be cleared
 
-- **Display** (rgb light)   
+- **Program List**
+  The switch returns to off as log ther has no program list has been set before (e.g. "1 2 3.lst).
+  if there is valid program list available set the switch to on and provide the animations to be loaded to the program slots
+  until the Proram Slot sensor shows 0 again. 
+  Example: key in into the Text or Image URL field
+    <URL>.gif<return> loads a gif image
+    This text shall follow the animation.<return>
+    And now the porgram is at its end.<return>
+  Now the Programm feature displays all provided commands in a sequence. The program will be stpped on anything loaded to slot 0 afterwards.
+  This may be selecting control light effects or keying in other commands. 
+
+- **Control** (rgb light)   
   First of all you can switch on and off the display;)
   Cliking on the text "Display" will open the rgb light dialog (see next chapter)
 
@@ -38,10 +61,11 @@ When this external component is compiled and uploaded to the esp32 module you ho
   - **Time** displays an internal clock frame  
   - **Time & Date** display alternating clock and date  
   - **Message** display text  
-  - **Load PNG** displays an internal stored 32x32 image  
-  - **Load GIF** no function (work in progress)  
+  - **Load Image** select the source via the Image Slot slider
   - **Fill Color** fills the entire display with the current color  
   - **Fill Rainbow** loads an image with diagonal rainbow colors  
+  - **Rhythn Animation** set the style via the Image Slot slider
+  - **Rhythm Levels** set the style via the Image Slot slider  
   - **Random Pixel** calls the setPixel() method with random coordinates and colors every 300ms  
   - **Alarm** changes brightness in a falling ramp every 300ms  
 
@@ -69,7 +93,7 @@ When this external component is compiled and uploaded to the esp32 module you ho
  
 ### The display rgb light component explained
 
-Cklick on the text "Display" of the RGB light component to open detailed settings. Here you can set brightness, color and effects.
+Click on the text "Control" of the RGB light component to open detailed settings. Here you can set brightness, color and select effects.
 
 ![RGB light dialog](light_view.png)
 
@@ -91,38 +115,77 @@ script:
   alias: iPixel Default
   description: 'set the LED pixel board defaults'
 ```
-Example for displaying a text message:
+
+Example for displaying a program list:
 ```
 script:
   sequence:
   - action: light.turn_on
-    target:
-      entity_id: light.ipixel_ble_display
-    data:
-      rgb_color:
-      - 255
-      - 255
-      - 0
-    effect: "Load PNG"
-  - device_id: ipixel_id
-    domain: number
-    entity_id: font_mode_id
-    type: set_value
-    value: 2
-  - action: text.set_value
     metadata: {}
     data:
-      value: This is a script message from Homeassistant
+      effect: Time
+      rgb_color:
+        - 255
+        - 0
+        - 0
     target:
-      entity_id: text.ipixel_ble_data
-  - action: light.turn_on
-    target:
-      entity_id: light.ipixel_ble_display
-    data:
-      effect: Message
-      brightness_pct: 100
-  alias: iPixel send and display text
-  description: 'display text on the LED pixel board'
+      entity_id: light.ipixel_stripe_control
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: number
+    entity_id: number.ipixel_stripe_annimation_speed
+    type: set_value
+    value: 90
+  - type: turn_off
+    device_id: a1727ee4b5abe85afc26d8e1e5198567
+    entity_id: switch.ipixel_stripe_program_list
+    domain: switch
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: 1 2 3.lst
+  - type: turn_on
+    device_id: a1727ee4b5abe85afc26d8e1e5198567
+    entity_id: switch.ipixel_stripe_program_list
+    domain: switch
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: >-
+      https://img.favpng.com/22/16/11/yellow-heart-yellow-smiling-heart-emoticon-with-blushing-cheeks-Za0kGyFt.jpg
+  - wait_template: "{{ states('sensor.ipixel_stripe_upload_queue') | int == 0 }}"
+    continue_on_timeout: true
+    timeout: "00:00:10.000"
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: 0 0 0.bgc
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: Und hier kommt ein Karton
+  - wait_template: "{{ states('sensor.ipixel_stripe_upload_queue') | int == 0 }}"
+    continue_on_timeout: true
+    timeout: "00:00:01.000"
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: 255 255 255.col
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: 128 128 0.bgc
+  - device_id: a1727ee4b5abe85afc26d8e1e5198567
+    domain: text
+    entity_id: text.ipixel_stripe_text_or_image_url
+    type: set_value
+    value: Ende im Gelände
+alias: ipixel program
+description: ""
+
 ```
-
-

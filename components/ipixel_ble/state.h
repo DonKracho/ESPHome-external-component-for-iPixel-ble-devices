@@ -40,8 +40,9 @@ class DeviceState {
   uint8_t mFontFlag{0};
   uint8_t mFontWidth{8};
   uint8_t mFontHeight{16};
-  uint8_t mOrientation{0};
+  uint16_t mRotation{0};
   uint8_t mFunMode{0};
+  uint8_t mProgramSlot{0};
 
   // numbers
   uint8_t mClockStyle{7};

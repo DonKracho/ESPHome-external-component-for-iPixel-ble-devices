@@ -16,7 +16,7 @@ CONF_DISPLAY_HEIGHT = "display_height"
 CONF_FONT_FLAG = "font_flag"
 CONF_FONT_WIDTH = "font_width"
 CONF_FONT_HEIGHT = "font_height"
-CONF_ORIENTATION = "orientation"
+CONF_ROTATION = "rotation"
 CONF_FUN_MODE = "fun_mode"
 CONF_PROGRAM_SLOT = "program_slot"
 CONF_UPLOAD_QUEUE = "upload_queue"
@@ -60,8 +60,8 @@ CONFIG_SCHEMA = cv.Schema(
             device_class=DEVICE_CLASS_EMPTY,
             state_class=STATE_CLASS_MEASUREMENT,
         ),
-        cv.Optional(CONF_ORIENTATION): sensor.sensor_schema(
-            unit_of_measurement=UNIT_EMPTY,
+        cv.Optional(CONF_ROTATION): sensor.sensor_schema(
+            unit_of_measurement="°",
             accuracy_decimals=0,
             device_class=DEVICE_CLASS_EMPTY,
             state_class=STATE_CLASS_MEASUREMENT,
@@ -98,7 +98,7 @@ async def to_code(config):
         CONF_FONT_FLAG,
         CONF_FONT_WIDTH,
         CONF_FONT_HEIGHT,
-        CONF_ORIENTATION,
+        CONF_ROTATION,
         CONF_FUN_MODE,
         CONF_PROGRAM_SLOT,
         CONF_UPLOAD_QUEUE,

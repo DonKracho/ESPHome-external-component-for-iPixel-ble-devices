@@ -1,8 +1,8 @@
 #include "iPixelCommands.h"
 #include <algorithm>
 
-#undef ESPHOME_LOG_LEVEL
-#define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG
+//#undef ESPHOME_LOG_LEVEL
+//#define ESPHOME_LOG_LEVEL ESPHOME_LOG_LEVEL_DEBUG  // lower than global yanl setting gets not applied:(
 #include "esphome/core/log.h"
 
 namespace iPixelCommads {
@@ -12,7 +12,7 @@ namespace iPixelCommads {
     bool checkRange(const char* name, int value, int minVal, int maxVal) {
         if (value < minVal || value > maxVal) {
 			std::string err = std::string(name) + " out of range (" + std::to_string(minVal) + "-" + std::to_string(maxVal) + ") got " + std::to_string(value);
-            ESP_LOGE(TAG, "%s\n", err.c_str());
+            ESP_LOGI(TAG, "%s\n", err.c_str());
             return false;
         }
         return true;
@@ -52,15 +52,15 @@ namespace iPixelCommads {
         return frame;
     }
         
-    std::vector<uint8_t> setOrientation(int orientation) {
-        checkRange("Orientation", orientation, 0, 2);
+    std::vector<uint8_t> setRotation(int rotation) {
+        checkRange("Rotation", rotation, 0, 3);
 
         std::vector<uint8_t> frame(5);
         frame[0] = 0x05;
         frame[1] = 0x00;
         frame[2] = 0x06;
         frame[3] = 0x80;
-        frame[4] = (uint8_t)orientation;
+        frame[4] = (uint8_t)rotation;
 
         return frame;
     }
@@ -200,7 +200,7 @@ namespace iPixelCommads {
         std::vector<uint8_t> chars_bytes;
         Helpers::encodeText(text, font_flag, txt_color.r, txt_color.g, txt_color.b, length, chars_bytes);
 
-        ESP_LOGD(TAG, "sendText %s length=%d", text.c_str(), length);
+        ESP_LOGI(TAG, "sendText %s length=%d", text.c_str(), length);
 
         // --- Validation ---
         if (length == 0 || length > 500 || font_flag > 4) return {};

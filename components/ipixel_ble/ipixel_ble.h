@@ -113,7 +113,7 @@ public:
         ps_free();
         return false;
       }
-      ESP_LOGD("ChunkBuffer", "read %d bytes", chunk_size);
+      ESP_LOGI("ChunkBuffer", "read %d bytes", chunk_size);
       crc_ = crc32Update(ptr_ + read_, chunk_size, crc_);
       read_ += chunk_size;
       if (read_ >= size_) { // read finished
@@ -133,7 +133,7 @@ public:
       if (read_chunk()) return {};
       size_t chunk_size = size_ - pos_;
       if (chunk_size > MAX_CHUNK_SIZE) chunk_size = MAX_CHUNK_SIZE;
-      ESP_LOGE("ChunkBuffer", "upload %d bytes)", chunk_size);
+      ESP_LOGI("ChunkBuffer", "upload %d bytes)", chunk_size);
       index = chunk_index_;
       chunk_index_++;
       size_t pos = pos_;
@@ -235,7 +235,7 @@ public:
   void set_display_height(sensor::Sensor *sensor) { display_height_ = sensor; }
   void set_font_width(sensor::Sensor *sensor) { font_width_ = sensor; }
   void set_font_height(sensor::Sensor *sensor) { font_height_ = sensor; }
-  void set_orientation(sensor::Sensor *sensor) { orientation_ = sensor; }
+  void set_rotation(sensor::Sensor *sensor) { rotation_ = sensor; }
   void set_fun_mode(sensor::Sensor *sensor) { fun_mode_ = sensor; }
   void set_program_slot(sensor::Sensor *sensor) { program_slot_ = sensor; }
   void set_upload_queue(sensor::Sensor *sensor) { upload_queue_ = sensor; }
@@ -327,7 +327,7 @@ protected:
   sensor::Sensor *display_height_{};
   sensor::Sensor *font_width_{};
   sensor::Sensor *font_height_{};
-  sensor::Sensor *orientation_{};
+  sensor::Sensor *rotation_{};
   sensor::Sensor *fun_mode_{};
   sensor::Sensor *program_slot_{};
   sensor::Sensor *upload_queue_{};

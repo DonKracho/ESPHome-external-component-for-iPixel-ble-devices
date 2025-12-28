@@ -1,6 +1,6 @@
 substitutions:
-  #image_resolution: 32x32
-  image_resolution: 96x16
+  image_resolution: 32x32
+  #image_resolution: 96x16
 
 esphome:
   name: ipixel-stripe
@@ -83,8 +83,8 @@ esp32_ble_tracker:
 ble_client:
   id: ble_client_id
   # put the BLE MAC address of your device here
-  #mac_address: 0F:D6:54:F9:D2:C7  # 32x32
-  mac_address: C3:AD:E7:8A:97:CA  # 96x16
+  mac_address: 0F:D6:54:F9:D2:C7  # 32x32
+  #mac_address: C3:AD:E7:8A:97:CA  # 96x16
 
 ipixel_ble:
     id: ipixel_ble_id
@@ -161,6 +161,15 @@ display:
           }
 
 light:
+  - platform: esp32_rmt_led_strip
+    id: ws2812_id
+    rgb_order: GRB
+    chipset: ws2812
+    pin: GPIO48
+    num_leds: 1
+    name: "Onboard LED"
+    default_transition_length: 0s
+    #internal: true
   - platform: ipixel_ble
     id: control_id
     name: Control
@@ -232,9 +241,9 @@ sensor:
       name: "Font Height"
       id: font_height
       icon: mdi:arrow-up-down
-    orientation:
-      name: "Orientation"
-      id: orientation
+    rotation:
+      name: "Rotation"
+      id: rotation
       icon: mdi:screen-rotation
     fun_mode:
       name: "Fun Mode"
@@ -248,6 +257,10 @@ sensor:
       name: "Upload Queue"
       id: upload_queue
       icon: mdi:counter
+#      on_value:
+#        - light.turn_on:
+#            id: ws2812_id
+#            red: !lambda "return x*8;"
 
 number:
   - platform: ipixel_ble

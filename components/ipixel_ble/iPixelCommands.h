@@ -16,7 +16,7 @@ namespace iPixelCommads {
     std::vector<uint8_t> getFirmwareVersions();
     // setting parameters
     std::vector<uint8_t> setPower(bool state);
-    std::vector<uint8_t> setOrientation(int orientation);
+    std::vector<uint8_t> setRotation(int rotation);
     std::vector<uint8_t> setBrightness(int brightness);
     std::vector<uint8_t> setSpeed(int speed);
     std::vector<uint8_t> setFunMode(bool value);

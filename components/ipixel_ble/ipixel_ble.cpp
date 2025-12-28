@@ -439,8 +439,11 @@ void IPixelBLE::update_state_(const DeviceState &new_state) {
   if (fun_mode_ != nullptr && fun_mode_->state != new_state.mFunMode) {
     fun_mode_->publish_state(new_state.mFunMode);
   }
-  if (orientation_ != nullptr && orientation_->state != new_state.mOrientation) {
-    orientation_->publish_state(new_state.mOrientation);
+  if (rotation_ != nullptr && rotation_->state != new_state.mRotation) {
+    rotation_->publish_state(new_state.mRotation);
+  }
+  if (program_slot_ != nullptr && program_slot_->state != new_state.mProgramSlot) {
+    program_slot_->publish_state(new_state.mProgramSlot);
   }
 }
 
@@ -492,6 +495,12 @@ void IPixelBLE::on_clock_style_number(float value) {
 }
 
 void IPixelBLE::on_lambda_slot_number(float value) {
+  if (state_.mEffect == None) {
+    int rotation = static_cast<int>(value)%4;
+    uint16_t degree[] = {0, 90, 180, 270};
+    state_.mRotation = degree[rotation];
+    return queuePush( iPixelCommads::setRotation(rotation) );
+  }
   if (state_.mSlotNumber != value) {
     state_.mSlotNumber = value;
     if (lambda_slot_number_ != nullptr) lambda_slot_number_->publish_state(value);
@@ -777,9 +786,7 @@ uint8_t IPixelBLE::get_slot(bool countdown) {
   }
 
   // update next program slot sensor
-  if (program_slot_ != nullptr && program_slot_->state != next_slot) {
-    program_slot_->publish_state(next_slot);
-  }
+  state_.mProgramSlot = next_slot;
 
   return slot;
 }
